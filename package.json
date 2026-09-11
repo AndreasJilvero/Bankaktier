@@ -5,11 +5,15 @@
   "main": "index.js",
   "scripts": {
     "build": "node build/fetch-data.js",
+    "serve": "python -m http.server 5173 --directory build/site",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
     "better-sqlite3": "^13.0.3"
   }
