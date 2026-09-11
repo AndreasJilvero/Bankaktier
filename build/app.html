@@ -23,6 +23,7 @@
     --loss-wash:#F7E7E5;
     --index-a:#2B5C4B;
     --index-b:#9A6A2B;
+    --index-c:#5B7A99;
     --focus:#2B5C4B;
     --shadow:0 1px 2px rgba(22,36,28,0.06), 0 8px 24px -12px rgba(22,36,28,0.18);
   }
@@ -46,6 +47,7 @@
       --loss-wash:#2E1E1C;
       --index-a:#5FA98A;
       --index-b:#D9A054;
+      --index-c:#8CAFCB;
       --focus:#7FC2A3;
       --shadow:0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
     }
@@ -69,6 +71,7 @@
     --loss-wash:#2E1E1C;
     --index-a:#5FA98A;
     --index-b:#D9A054;
+    --index-c:#8CAFCB;
     --focus:#7FC2A3;
     --shadow:0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
   }
@@ -235,7 +238,7 @@
 
   <section class="chart-panel">
     <div class="chart-head">
-      <div class="legend">
+      <div class="legend" id="chartLegend">
         <span><i class="swatch" style="background:var(--index-a)"></i>Bankindex (valda aktier, marknadsviktat)</span>
         <span><i class="swatch" style="background:var(--index-b)"></i>OMXS30</span>
       </div>
@@ -291,6 +294,7 @@
     <span>Nyckeltal (P/E, P/B, direktavkastning, utdelningsandel) och historik hämtade vid byggtillfället från Yahoo Finance. Kurs och dagens förändring uppdateras direkt i webbläsaren där det tillåts av sidans värdmiljö; annars visas byggtidens ögonblicksbild, tydligt tidsstämplad högst upp.</span>
     <span>P/E-prognos avser analytikerkonsensus för kommande räkenskapsår där sådan finns. Nyckeltal som saknar rimliga värden (t.ex. till följd av valutaavvikelser i källdatan) visas som "—" istället för ett missvisande tal.</span>
     <span>Bolag som noterats kortare tid än den valda perioden (t.ex. en nyligen börsnoterad bank) saknar egna kurser för tiden före notering. För den perioden approximeras bolagets bidrag till bankindexet med OMXS30:s utveckling, så att indexet kan visas för hela perioden istället för att kortas av till det yngsta bolagets historik.</span>
+    <span>OMX Stockholm Banks GI (Nasdaqs officiella sektorindex för svenska bankaktier) visas som jämförelse när den kunnat hämtas vid byggtillfället; källan spärrar ibland automatiserade förfrågningar, så linjen kan saknas för enstaka byggen.</span>
     <span>Endast för information, inte investeringsrådgivning. Källa: Yahoo Finance.</span>
   </footer>
 
@@ -601,6 +605,17 @@
     return points.map(function(p){ return { t: p.t, c: (p.c / base) * 100 }; });
   }
 
+  var legendBuilt = { withSector: null };
+  function updateChartLegend(showSector){
+    if (legendBuilt.withSector === showSector) return;
+    legendBuilt.withSector = showSector;
+    var legend = document.getElementById('chartLegend');
+    legend.innerHTML =
+      '<span><i class="swatch" style="background:var(--index-a)"></i>Bankindex (valda aktier, marknadsviktat)</span>' +
+      '<span><i class="swatch" style="background:var(--index-b)"></i>OMXS30</span>' +
+      (showSector ? '<span><i class="swatch" style="background:var(--index-c)"></i>OMX Stockholm Banks GI</span>' : '');
+  }
+
   function filterByRange(points, days){
     if (days >= 9999 || !points.length) return points;
     var lastT = points[points.length - 1].t;
@@ -611,13 +626,18 @@
   function renderChart(){
     var bankSeriesFull = computeBankIndexSeries();
     var omxSeriesFull = rebaseSeries(DATA.omxs30);
+    var sectorSeriesFull = (DATA.bankSectorIndex && DATA.bankSectorIndex.length) ? rebaseSeries(DATA.bankSectorIndex) : [];
 
     var bankSeries = filterByRange(bankSeriesFull, state.range);
     var omxSeries = filterByRange(omxSeriesFull, state.range);
+    var sectorSeries = sectorSeriesFull.length ? filterByRange(sectorSeriesFull, state.range) : [];
 
     // Re-rebase to 100 at the start of the selected window so both ranges are comparable.
     bankSeries = rebaseSeries(bankSeries);
     omxSeries = rebaseSeries(omxSeries);
+    sectorSeries = sectorSeries.length ? rebaseSeries(sectorSeries) : [];
+
+    updateChartLegend(sectorSeries.length > 0);
 
     var svg = document.getElementById('chart');
     var W = 1000, H = 220, padL = 46, padR = 14, padT = 14, padB = 26;
@@ -626,18 +646,27 @@
     var css = getComputedStyle(document.documentElement);
     var colorA = css.getPropertyValue('--index-a').trim();
     var colorB = css.getPropertyValue('--index-b').trim();
+    var colorC = css.getPropertyValue('--index-c').trim();
     var colorInk = css.getPropertyValue('--ink-soft').trim();
     var colorLine = css.getPropertyValue('--line-soft').trim();
 
-    var allVals = bankSeries.concat(omxSeries).map(function(p){ return p.c; });
+    var allVals = bankSeries.concat(omxSeries).concat(sectorSeries).map(function(p){ return p.c; });
     if (!allVals.length) return;
     var minV = Math.min.apply(null, allVals);
     var maxV = Math.max.apply(null, allVals);
     var pad = (maxV - minV) * 0.08 || 1;
     minV -= pad; maxV += pad;
 
-    var minT = Math.min(bankSeries[0] ? bankSeries[0].t : Infinity, omxSeries[0] ? omxSeries[0].t : Infinity);
-    var maxT = Math.max(bankSeries.length ? bankSeries[bankSeries.length-1].t : -Infinity, omxSeries.length ? omxSeries[omxSeries.length-1].t : -Infinity);
+    var minT = Math.min(
+      bankSeries[0] ? bankSeries[0].t : Infinity,
+      omxSeries[0] ? omxSeries[0].t : Infinity,
+      sectorSeries[0] ? sectorSeries[0].t : Infinity
+    );
+    var maxT = Math.max(
+      bankSeries.length ? bankSeries[bankSeries.length-1].t : -Infinity,
+      omxSeries.length ? omxSeries[omxSeries.length-1].t : -Infinity,
+      sectorSeries.length ? sectorSeries[sectorSeries.length-1].t : -Infinity
+    );
 
     function x(t){ return padL + ((t - minT) / (maxT - minT || 1)) * (W - padL - padR); }
     function y(v){ return padT + (1 - (v - minV) / (maxV - minV || 1)) * (H - padT - padB); }
@@ -740,6 +769,9 @@
       });
     }
 
+    if (sectorSeries.length > 1) {
+      svg.appendChild(el('path', { d: pathFor(sectorSeries), fill: 'none', stroke: colorC, 'stroke-width': 1.75, 'stroke-linejoin': 'round', 'stroke-dasharray': '5 4' }));
+    }
     if (omxSeries.length > 1) {
       svg.appendChild(el('path', { d: pathFor(omxSeries), fill: 'none', stroke: colorB, 'stroke-width': 2, 'stroke-linejoin': 'round' }));
     }
@@ -756,15 +788,21 @@
       var lastO = omxSeries[omxSeries.length-1];
       svg.appendChild(el('circle', { cx: x(lastO.t).toFixed(2), cy: y(lastO.c).toFixed(2), r: 4, fill: colorB }));
     }
+    if (sectorSeries.length) {
+      var lastS = sectorSeries[sectorSeries.length-1];
+      svg.appendChild(el('circle', { cx: x(lastS.t).toFixed(2), cy: y(lastS.c).toFixed(2), r: 3.5, fill: colorC }));
+    }
 
     // stats
     var statsEl = document.getElementById('chartStats');
     var bankReturn = bankSeries.length ? bankSeries[bankSeries.length-1].c - 100 : null;
     var omxReturn = omxSeries.length ? omxSeries[omxSeries.length-1].c - 100 : null;
+    var sectorReturn = sectorSeries.length ? sectorSeries[sectorSeries.length-1].c - 100 : null;
     statsEl.innerHTML =
       '<span><span class="stat-label">Bankindex, perioden:</span><span class="stat-value ' + pctClass(bankReturn) + '">' + fmtPct(bankReturn, 1) + '</span></span>' +
       '<span><span class="stat-label">OMXS30, perioden:</span><span class="stat-value ' + pctClass(omxReturn) + '">' + fmtPct(omxReturn, 1) + '</span></span>' +
-      '<span><span class="stat-label">Mellanskillnad:</span><span class="stat-value ' + pctClass(bankReturn - omxReturn) + '">' + fmtPct((bankReturn||0) - (omxReturn||0), 1) + '</span></span>';
+      '<span><span class="stat-label">Mellanskillnad:</span><span class="stat-value ' + pctClass(bankReturn - omxReturn) + '">' + fmtPct((bankReturn||0) - (omxReturn||0), 1) + '</span></span>' +
+      (sectorSeries.length ? '<span><span class="stat-label">OMX Stockholm Banks GI, perioden:</span><span class="stat-value ' + pctClass(sectorReturn) + '">' + fmtPct(sectorReturn, 1) + '</span></span>' : '');
   }
 
   // Claude's published-artifact sandbox enforces a Content Security Policy that only

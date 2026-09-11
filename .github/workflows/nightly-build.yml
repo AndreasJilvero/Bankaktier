@@ -5,6 +5,8 @@ on:
     # 02:15 UTC ≈ after Stockholm exchange close and Yahoo's end-of-day data settles
     - cron: '15 2 * * *'
   workflow_dispatch: {}
+  push:
+    branches: [master]
 
 permissions:
   contents: write

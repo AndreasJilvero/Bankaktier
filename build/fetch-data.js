@@ -9,6 +9,7 @@
 const fs = require('fs');
 const path = require('path');
 const historyDb = require('./history-db');
+const { fetchStooqDailyHistory } = require('./stooq');
 
 const STOCKS = JSON.parse(fs.readFileSync(path.join(__dirname, 'stocks.json'), 'utf8'));
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
@@ -183,10 +184,34 @@ async function main() {
   console.log(omxSync.wasBackfill ? `backfilled ${omxSync.fetchedNewPoints} pts` : `+${omxSync.fetchedNewPoints} pts since last run`);
   const omxHistory = historyDb.getHistory(db, '^OMX', cutoffT);
 
+  // Best-effort: OMX Stockholm Banks GI sector index, via Stooq (Yahoo's own feed for
+  // this symbol is broken with no working fallback ticker). Stooq gates requests
+  // behind a bot challenge and sometimes blocks the requesting IP outright even after
+  // solving it — so this is allowed to simply come back empty without failing the build.
+  process.stdout.write('Fetching OMX Stockholm Banks GI (SX3010GI, via Stooq)... ');
+  const stooqSymbol = 'stooq:sx3010gi';
+  let bankSectorIndex = [];
+  try {
+    const freshPoints = await fetchStooqDailyHistory('sx3010gi');
+    if (freshPoints && freshPoints.length) {
+      historyDb.upsertPrices(db, stooqSymbol, freshPoints);
+      console.log(`fetched ${freshPoints.length} pts`);
+    } else {
+      console.log('unavailable this run (blocked or no data)');
+    }
+  } catch (e) {
+    console.log(`unavailable this run (${e.message})`);
+  }
+  bankSectorIndex = historyDb.getHistory(db, stooqSymbol, cutoffT);
+  if (bankSectorIndex.length) {
+    console.log(`  using ${bankSectorIndex.length} cached/fresh points for SX3010GI.`);
+  }
+
   const output = {
     generatedAt: new Date().toISOString(),
     stocks: stocksOut,
     omxs30: omxHistory,
+    bankSectorIndex: bankSectorIndex,
   };
 
   fs.writeFileSync(path.join(__dirname, 'data.json'), JSON.stringify(output));
