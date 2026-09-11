@@ -667,14 +667,75 @@
       svg.appendChild(label);
     });
 
-    // x-axis labels (first, middle, last date)
+    // x-axis labels: pick evenly-spaced calendar ticks (roughly one per ~90px of
+    // width) rather than just first/middle/last, so a 5-year span actually shows
+    // several years of ticks instead of looking like a single short stretch.
     var allSeriesForLabels = bankSeries.length ? bankSeries : omxSeries;
-    if (allSeriesForLabels.length) {
-      [0, Math.floor(allSeriesForLabels.length/2), allSeriesForLabels.length-1].forEach(function(idx){
-        var p = allSeriesForLabels[idx];
-        var d = new Date(p.t * 1000);
-        var label = el('text', { x: x(p.t).toFixed(2), y: H - 8, 'text-anchor': idx===0?'start':(idx===allSeriesForLabels.length-1?'end':'middle'), 'font-size': 11, 'font-family': 'IBM Plex Mono, monospace', fill: colorInk });
-        label.textContent = d.toLocaleDateString('sv-SE', { year: '2-digit', month: 'short' });
+    if (allSeriesForLabels.length > 1) {
+      var spanSeconds = maxT - minT;
+      var spanDays = spanSeconds / 86400;
+      var approxTickCount = Math.max(2, Math.min(8, Math.round((W - padL - padR) / 90)));
+      var monthly = spanDays <= 210; // ~7 months or less: label by day/week
+      var yearly = spanDays > 640; // ~21 months+: label by calendar year
+      var tickDates = [];
+
+      if (monthly) {
+        var stepDays = Math.max(1, Math.round(spanDays / approxTickCount));
+        for (var t = minT; t <= maxT; t += stepDays * 86400) tickDates.push(t);
+        if (tickDates[tickDates.length - 1] !== maxT) tickDates.push(maxT);
+      } else if (yearly) {
+        var startYear = new Date(minT * 1000).getUTCFullYear();
+        var endYear = new Date(maxT * 1000).getUTCFullYear();
+        var totalYears = endYear - startYear + 1;
+        var yearStep = Math.max(1, Math.ceil(totalYears / approxTickCount));
+        for (var yr = startYear; yr <= endYear; yr += yearStep) {
+          var jan1 = Date.UTC(yr, 0, 1) / 1000;
+          tickDates.push(Math.max(minT, Math.min(maxT, jan1)));
+        }
+        if (tickDates[tickDates.length - 1] < maxT - (365 * 86400) / 2) tickDates.push(maxT);
+      } else {
+        // medium range (~7-21 months): tick on the 1st of each month
+        var cursor = new Date(minT * 1000);
+        var startY = cursor.getUTCFullYear(), startM = cursor.getUTCMonth();
+        var endD = new Date(maxT * 1000);
+        var totalMonths = (endD.getUTCFullYear() - startY) * 12 + (endD.getUTCMonth() - startM) + 1;
+        var monthStep = Math.max(1, Math.ceil(totalMonths / approxTickCount));
+        for (var mi = 0; mi < totalMonths; mi += monthStep) {
+          var monthTs = Date.UTC(startY, startM + mi, 1) / 1000;
+          tickDates.push(Math.max(minT, Math.min(maxT, monthTs)));
+        }
+        if (tickDates[tickDates.length - 1] < maxT - (30 * 86400) / 2) tickDates.push(maxT);
+      }
+
+      // snap each tick to the nearest actual data point so the line/label align
+      var seriesTimes = allSeriesForLabels.map(function(p){ return p.t; });
+      function nearestT(target){
+        var best = seriesTimes[0], bestDiff = Math.abs(seriesTimes[0] - target);
+        for (var i = 1; i < seriesTimes.length; i++) {
+          var diff = Math.abs(seriesTimes[i] - target);
+          if (diff < bestDiff) { bestDiff = diff; best = seriesTimes[i]; }
+        }
+        return best;
+      }
+
+      var placedX = [];
+      tickDates.forEach(function(target, idx){
+        var snappedT = nearestT(target);
+        var px = x(snappedT);
+        // skip if it would overlap the previous label
+        if (placedX.length && px - placedX[placedX.length - 1] < 34) return;
+        placedX.push(px);
+        var d = new Date(snappedT * 1000);
+        var isFirst = idx === 0;
+        var isLast = px > W - padR - 34;
+        var label = el('text', {
+          x: px.toFixed(2), y: H - 8,
+          'text-anchor': isFirst ? 'start' : (isLast ? 'end' : 'middle'),
+          'font-size': 11, 'font-family': 'IBM Plex Mono, monospace', fill: colorInk
+        });
+        label.textContent = monthly
+          ? d.toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' })
+          : (yearly ? d.toLocaleDateString('sv-SE', { year: 'numeric' }) : d.toLocaleDateString('sv-SE', { month: 'short', year: '2-digit' }));
         svg.appendChild(label);
       });
     }
