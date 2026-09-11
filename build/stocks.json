@@ -1,0 +1,65 @@
+[
+  {
+    "id": "seb-a",
+    "name": "SEB A",
+    "fullName": "Skandinaviska Enskilda Banken A",
+    "category": "storbank",
+    "yahoo": "SEB-A.ST"
+  },
+  {
+    "id": "swedbank-a",
+    "name": "Swedbank A",
+    "fullName": "Swedbank A",
+    "category": "storbank",
+    "yahoo": "SWED-A.ST"
+  },
+  {
+    "id": "handelsbanken-a",
+    "name": "Handelsbanken A",
+    "fullName": "Svenska Handelsbanken A",
+    "category": "storbank",
+    "yahoo": "SHB-A.ST"
+  },
+  {
+    "id": "nordea",
+    "name": "Nordea Bank",
+    "fullName": "Nordea Bank Abp",
+    "category": "storbank",
+    "yahoo": "NDA-SE.ST"
+  },
+  {
+    "id": "avanza",
+    "name": "Avanza Bank",
+    "fullName": "Avanza Bank Holding",
+    "category": "nisch",
+    "yahoo": "AZA.ST"
+  },
+  {
+    "id": "nordnet",
+    "name": "Nordnet",
+    "fullName": "Nordnet AB",
+    "category": "nisch",
+    "yahoo": "SAVE.ST"
+  },
+  {
+    "id": "norion",
+    "name": "Norion Bank",
+    "fullName": "Norion Bank AB (f.d. Collector)",
+    "category": "nisch",
+    "yahoo": "NORION.ST"
+  },
+  {
+    "id": "avarda",
+    "name": "Avarda Bank",
+    "fullName": "Avarda Bank AB (f.d. TF Bank)",
+    "category": "nisch",
+    "yahoo": "AVARDA.ST"
+  },
+  {
+    "id": "enity",
+    "name": "Enity Holding",
+    "fullName": "Enity Holding AB (f.d. Nordax Bank)",
+    "category": "nisch",
+    "yahoo": "ENITY.ST"
+  }
+]

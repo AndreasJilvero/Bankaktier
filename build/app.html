@@ -1,0 +1,764 @@
+<title>Bankindex Sverige</title>
+<meta name="description" content="Alla svenska bankaktier i en tabell, med ett eget bankindex du bygger genom att kryssa i eller ur aktier, jämfört mot OMXS30." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F7F5EF;
+    --paper-raised:#FFFFFF;
+    --ink:#16241C;
+    --ink-soft:#4B5750;
+    --line:#DAD4C4;
+    --line-soft:#E7E2D4;
+    --spruce:#2B5C4B;
+    --spruce-deep:#1D4136;
+    --spruce-wash:#E7EFEA;
+    --copper:#B5601F;
+    --copper-deep:#8F4A17;
+    --copper-wash:#F5E7D8;
+    --gain:#1E7A4C;
+    --gain-wash:#E4F2E9;
+    --loss:#B23B3B;
+    --loss-wash:#F7E7E5;
+    --index-a:#2B5C4B;
+    --index-b:#9A6A2B;
+    --focus:#2B5C4B;
+    --shadow:0 1px 2px rgba(22,36,28,0.06), 0 8px 24px -12px rgba(22,36,28,0.18);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#141A16;
+      --paper-raised:#1B231D;
+      --ink:#EDEEE8;
+      --ink-soft:#A9B2A7;
+      --line:#3A4239;
+      --line-soft:#2A3128;
+      --spruce:#5FA98A;
+      --spruce-deep:#7FC2A3;
+      --spruce-wash:#1E2C25;
+      --copper:#E0985A;
+      --copper-deep:#F0AE78;
+      --copper-wash:#2E2419;
+      --gain:#5FC08A;
+      --gain-wash:#1B2A20;
+      --loss:#E27A72;
+      --loss-wash:#2E1E1C;
+      --index-a:#5FA98A;
+      --index-b:#D9A054;
+      --focus:#7FC2A3;
+      --shadow:0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#141A16;
+    --paper-raised:#1B231D;
+    --ink:#EDEEE8;
+    --ink-soft:#A9B2A7;
+    --line:#3A4239;
+    --line-soft:#2A3128;
+    --spruce:#5FA98A;
+    --spruce-deep:#7FC2A3;
+    --spruce-wash:#1E2C25;
+    --copper:#E0985A;
+    --copper-deep:#F0AE78;
+    --copper-wash:#2E2419;
+    --gain:#5FC08A;
+    --gain-wash:#1B2A20;
+    --loss:#E27A72;
+    --loss-wash:#2E1E1C;
+    --index-a:#5FA98A;
+    --index-b:#D9A054;
+    --focus:#7FC2A3;
+    --shadow:0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', system-ui, sans-serif;
+    padding-inline:20px;
+    padding-block:18px 40px;
+  }
+  .wrap{max-width:1180px;margin:0 auto;}
+
+  h1,h2,h3{font-family:'Source Serif 4', Georgia, serif; text-wrap:balance; margin:0;}
+  a{color:inherit;}
+  .num{font-family:'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric:tabular-nums;}
+
+  header.masthead{
+    display:flex; flex-wrap:wrap; gap:12px 32px; align-items:flex-end; justify-content:space-between;
+    padding-block-end:14px; margin-block-end:16px; border-bottom:2px solid var(--ink);
+  }
+  .masthead-title{max-width:640px;}
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace; font-size:0.72rem; letter-spacing:0.12em; text-transform:uppercase;
+    color:var(--spruce-deep); margin:0 0 6px;
+  }
+  .masthead-title h1{font-size:clamp(1.7rem, 1.2rem + 2vw, 2.4rem); font-weight:700; line-height:1.08;}
+  .masthead-title p{margin:8px 0 0; color:var(--ink-soft); font-size:0.95rem; max-width:52ch; line-height:1.5;}
+  .asof{
+    text-align:right; font-size:0.78rem; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;
+    display:flex; flex-direction:column; gap:4px; align-items:flex-end;
+  }
+  .asof .live-dot{
+    display:inline-flex; align-items:center; gap:6px; color:var(--spruce-deep); font-weight:600;
+  }
+  .live-dot .dot{width:7px;height:7px;border-radius:50%;background:var(--gain);box-shadow:0 0 0 3px var(--gain-wash);}
+  .live-dot .dot.stale{background:var(--ink-soft);box-shadow:0 0 0 3px var(--line-soft);}
+  .live-dot .dot.loading{animation:pulse 1.1s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
+
+  /* ---- Chart panel ---- */
+  section.chart-panel{
+    background:var(--paper-raised); border:1px solid var(--line); border-radius:10px;
+    padding:14px 22px 12px; margin-block-end:18px; box-shadow:var(--shadow);
+  }
+  .chart-head{
+    display:flex; flex-wrap:wrap; gap:10px 28px; justify-content:space-between; align-items:center;
+    margin-block-end:8px;
+  }
+  .legend{display:flex; gap:18px; flex-wrap:wrap; font-size:0.82rem; color:var(--ink-soft);}
+  .legend span{display:inline-flex; align-items:center; gap:7px;}
+  .legend .swatch{width:16px;height:3px;border-radius:2px;display:inline-block;}
+  .range-toggle{display:flex; gap:4px; background:var(--line-soft); padding:3px; border-radius:8px;}
+  .range-toggle button{
+    border:none; background:transparent; padding:5px 11px; border-radius:6px; font-size:0.78rem;
+    font-family:'IBM Plex Mono', monospace; color:var(--ink-soft); cursor:pointer; font-weight:500;
+  }
+  .range-toggle button.active{background:var(--paper-raised); color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,0.08);}
+  .chart-wrap{position:relative; width:100%;}
+  svg#chart{width:100%; height:auto; display:block; overflow:visible;}
+  .chart-stats{
+    display:flex; gap:22px; flex-wrap:wrap; margin-block-start:6px; padding-block-start:8px;
+    border-top:1px solid var(--line-soft); font-size:0.82rem;
+  }
+  .chart-stats .stat-label{color:var(--ink-soft); margin-right:5px;}
+  .chart-stats .stat-value{font-family:'IBM Plex Mono', monospace; font-weight:600;}
+  .up{color:var(--gain);} .down{color:var(--loss);}
+
+  /* ---- Table ---- */
+  section.table-panel{
+    background:var(--paper-raised); border:1px solid var(--line); border-radius:10px;
+    box-shadow:var(--shadow); overflow:hidden;
+  }
+  .table-panel-head{
+    display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap;
+    padding:18px 22px 14px;
+  }
+  .table-panel-head h2{font-size:1.15rem; font-weight:600;}
+  .table-panel-head .hint{font-size:0.8rem; color:var(--ink-soft); max-width:44ch; text-align:right;}
+  .table-scroll{overflow-x:auto; border-top:1px solid var(--line-soft);}
+  table{border-collapse:collapse; width:100%; min-width:960px; font-size:0.88rem;}
+  thead th{
+    position:sticky; top:0; background:var(--paper-raised); z-index:2;
+    text-align:right; font-weight:600; font-size:0.72rem; letter-spacing:0.06em; text-transform:uppercase;
+    color:var(--ink-soft); padding:11px 14px; border-bottom:1px solid var(--line);
+    white-space:nowrap; cursor:pointer; user-select:none;
+  }
+  thead th:hover{color:var(--ink);}
+  thead th.sorted{color:var(--spruce-deep);}
+  thead th .arrow{margin-left:4px; opacity:0.6; font-size:0.68rem;}
+  thead th.col-check, thead th.col-name{text-align:left;}
+  thead th.col-name{position:sticky; left:0; z-index:3;}
+  thead th.col-check{position:sticky; left:0; z-index:3; width:40px;}
+  tbody th.col-name, tbody td.col-check{position:sticky; left:0; background:var(--paper-raised); z-index:1;}
+  tbody td.col-check{left:0; width:40px;}
+  tbody th.col-name{left:40px;}
+  thead th.col-name{left:40px;}
+
+  tbody tr{border-bottom:1px solid var(--line-soft);}
+  tbody tr:last-child{border-bottom:none;}
+  tbody tr:hover td, tbody tr:hover th{background:var(--spruce-wash);}
+  tbody tr.excluded{opacity:0.45;}
+  tbody td, tbody th{padding:10px 14px; text-align:right; vertical-align:middle;}
+  tbody th.col-name{text-align:left; font-weight:600; font-family:'IBM Plex Sans';}
+  .name-cell{display:flex; flex-direction:column; gap:2px;}
+  .name-cell .full{font-size:0.74rem; color:var(--ink-soft); font-weight:400;}
+  .cat-pill{
+    display:inline-block; font-size:0.64rem; font-family:'IBM Plex Mono', monospace; letter-spacing:0.04em;
+    text-transform:uppercase; padding:2px 7px; border-radius:20px; margin-top:3px; width:fit-content;
+  }
+  .cat-pill.storbank{background:var(--spruce-wash); color:var(--spruce-deep);}
+  .cat-pill.nisch{background:var(--copper-wash); color:var(--copper-deep);}
+
+  input[type="checkbox"]{
+    width:17px; height:17px; accent-color:var(--spruce); cursor:pointer; vertical-align:middle;
+  }
+  .price-cell{display:flex; flex-direction:column; align-items:flex-end; gap:1px;}
+  .price-cell .p{font-family:'IBM Plex Mono', monospace; font-weight:600;}
+
+  .buy-cell{position:relative; text-align:center;}
+  .buy-btn{
+    font-family:'IBM Plex Sans'; font-weight:600; font-size:0.8rem; color:#fff; background:var(--copper);
+    border:none; padding:7px 15px; border-radius:7px; cursor:pointer; white-space:nowrap;
+  }
+  .buy-btn:hover{background:var(--copper-deep);}
+  .buy-menu{
+    position:absolute; right:0; top:calc(100% + 6px); background:var(--paper-raised); border:1px solid var(--line);
+    border-radius:9px; box-shadow:var(--shadow); padding:6px; z-index:10; display:none; min-width:150px; text-align:left;
+  }
+  .buy-menu.open{display:block;}
+  .buy-menu a{
+    display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:6px; text-decoration:none;
+    font-size:0.85rem; color:var(--ink); font-weight:500;
+  }
+  .buy-menu a:hover{background:var(--spruce-wash);}
+  .buy-menu .broker-dot{width:8px;height:8px;border-radius:50%;flex:none;}
+  .broker-dot.avanza{background:#E4004B;}
+  .broker-dot.nordnet{background:#003C5B;}
+
+  tfoot td{padding:13px 14px; font-size:0.8rem; color:var(--ink-soft); border-top:2px solid var(--ink);}
+  tfoot .index-count{font-family:'IBM Plex Mono', monospace; font-weight:600; color:var(--spruce-deep);}
+
+  footer{
+    margin-block-start:34px; padding-block-start:18px; border-top:1px solid var(--line-soft);
+    font-size:0.78rem; color:var(--ink-soft); line-height:1.6; display:flex; flex-direction:column; gap:6px;
+  }
+  footer a{color:var(--spruce-deep); text-decoration:underline;}
+
+  @media (max-width:640px){
+    body{padding-inline:14px;}
+    .table-panel-head{flex-direction:column; align-items:flex-start;}
+    .table-panel-head .hint{text-align:left;}
+    thead th, tbody td, tbody th{padding:9px 10px;}
+  }
+
+  :focus-visible{outline:2px solid var(--focus); outline-offset:2px;}
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="masthead-title">
+      <p class="eyebrow">Svenska bankaktier &middot; byggd 2026</p>
+      <h1>Bankindex Sverige</h1>
+      <p>Storbanker och nischbanker på Stockholmsbörsen i en tabell. Kryssa ur eller i aktier för att se hur ditt eget bankindex presterar mot OMXS30.</p>
+    </div>
+    <div class="asof">
+      <span class="live-dot" id="liveStatus"><span class="dot loading" id="liveDot"></span><span id="liveLabel">Laddar…</span></span>
+      <span id="buildStamp">Byggd data: —</span>
+    </div>
+  </header>
+
+  <section class="chart-panel">
+    <div class="chart-head">
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--index-a)"></i>Bankindex (valda aktier, marknadsviktat)</span>
+        <span><i class="swatch" style="background:var(--index-b)"></i>OMXS30</span>
+      </div>
+      <div class="range-toggle" id="rangeToggle">
+        <button data-range="90">3 mån</button>
+        <button data-range="365">12 mån</button>
+        <button data-range="9999" class="active">5 år</button>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <svg id="chart" viewBox="0 0 1000 220" preserveAspectRatio="none" role="img" aria-label="Linjediagram över bankindex jämfört med OMXS30"></svg>
+    </div>
+    <div class="chart-stats" id="chartStats"></div>
+  </section>
+
+  <section class="table-panel">
+    <div class="table-panel-head">
+      <h2>Aktier</h2>
+      <p class="hint">Sorterad efter börsvärde. Kryssa i checkboxen för att inkludera aktien i bankindexet ovan.</p>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th class="col-check"><span class="sr-only">Inkludera</span></th>
+            <th class="col-name" data-sort="name">Bolag</th>
+            <th data-sort="price">Kurs</th>
+            <th data-sort="changeToday">Idag</th>
+            <th data-sort="change3m">3 mån</th>
+            <th data-sort="change12m">12 mån</th>
+            <th data-sort="marketCap" title="Börsvärde">Börsv.</th>
+            <th data-sort="dividendYield" title="Direktavkastning">Direktavk.</th>
+            <th data-sort="payoutRatio" title="Utdelningsandel">Utd.andel</th>
+            <th data-sort="trailingPE" title="P/E-tal">P/E</th>
+            <th data-sort="forwardPE" title="P/E-tal, prognos">P/E prog.</th>
+            <th data-sort="priceToBook" title="Pris/eget kapital">P/B</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+        <tfoot>
+          <tr>
+            <td colspan="13">
+              <span class="index-count" id="indexCount">8 av 8</span> aktier ingår i bankindexet &middot; totalt börsvärde i indexet: <span class="index-count" id="indexMcap">—</span>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <span>Nyckeltal (P/E, P/B, direktavkastning, utdelningsandel) och historik hämtade vid byggtillfället från Yahoo Finance. Kurs och dagens förändring uppdateras direkt i webbläsaren där det tillåts av sidans värdmiljö; annars visas byggtidens ögonblicksbild, tydligt tidsstämplad högst upp.</span>
+    <span>P/E-prognos avser analytikerkonsensus för kommande räkenskapsår där sådan finns. Nyckeltal som saknar rimliga värden (t.ex. till följd av valutaavvikelser i källdatan) visas som "—" istället för ett missvisande tal.</span>
+    <span>Endast för information, inte investeringsrådgivning. Källa: Yahoo Finance.</span>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  var DATA = null;
+  var state = {
+    sortKey: 'marketCap',
+    sortDir: 'desc',
+    included: {},
+    range: 9999
+  };
+
+  var CAT_LABEL = { storbank: 'Storbank', nisch: 'Nischbank' };
+
+  function fmtNum(v, decimals){
+    if (v === null || v === undefined || Number.isNaN(v)) return '—';
+    return v.toLocaleString('sv-SE', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  }
+  function fmtPct(v, decimals){
+    if (v === null || v === undefined || Number.isNaN(v)) return '—';
+    var s = v.toLocaleString('sv-SE', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    return (v > 0 ? '+' : '') + s + '%';
+  }
+  function fmtMcap(v){
+    if (v === null || v === undefined) return '—';
+    return (v / 1e9).toLocaleString('sv-SE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' Mdkr';
+  }
+  function pctClass(v){
+    if (v === null || v === undefined || Number.isNaN(v)) return '';
+    return v > 0 ? 'up' : (v < 0 ? 'down' : '');
+  }
+
+  function loadData(){
+    return fetch('data.json').then(function(r){ return r.json(); });
+  }
+
+  function init(data){
+    DATA = data;
+    DATA.stocks.forEach(function(s){ state.included[s.id] = true; });
+    document.getElementById('buildStamp').textContent = 'Byggd data: ' + new Date(DATA.generatedAt).toLocaleString('sv-SE', { dateStyle: 'medium', timeStyle: 'short' });
+    renderTable();
+    renderChart();
+    if (isArtifactSandbox()) {
+      markDataAsOf();
+    } else {
+      fetchLivePrices();
+    }
+    document.getElementById('rangeToggle').addEventListener('click', function(e){
+      var btn = e.target.closest('button[data-range]');
+      if (!btn) return;
+      Array.prototype.forEach.call(document.querySelectorAll('#rangeToggle button'), function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      state.range = parseInt(btn.getAttribute('data-range'), 10);
+      renderChart();
+    });
+    document.querySelectorAll('thead th[data-sort]').forEach(function(th){
+      th.addEventListener('click', function(){
+        var key = th.getAttribute('data-sort');
+        if (state.sortKey === key) {
+          state.sortDir = state.sortDir === 'desc' ? 'asc' : 'desc';
+        } else {
+          state.sortKey = key;
+          state.sortDir = (key === 'name') ? 'asc' : 'desc';
+        }
+        renderTable();
+      });
+    });
+    document.addEventListener('click', function(e){
+      if (!e.target.closest('.buy-cell')) closeAllMenus();
+    });
+  }
+
+  function closeAllMenus(){
+    document.querySelectorAll('.buy-menu.open').forEach(function(m){ m.classList.remove('open'); });
+  }
+
+  function sortedStocks(){
+    var arr = DATA.stocks.slice();
+    var key = state.sortKey, dir = state.sortDir;
+    arr.sort(function(a, b){
+      var av = a[key], bv = b[key];
+      if (key === 'name') {
+        return dir === 'asc' ? a.name.localeCompare(b.name, 'sv') : b.name.localeCompare(a.name, 'sv');
+      }
+      var an = (av === null || av === undefined) ? -Infinity : av;
+      var bn = (bv === null || bv === undefined) ? -Infinity : bv;
+      if (dir === 'asc') return an - bn;
+      return bn - an;
+    });
+    return arr;
+  }
+
+  function updateSortHeaders(){
+    document.querySelectorAll('thead th[data-sort]').forEach(function(th){
+      var key = th.getAttribute('data-sort');
+      th.classList.toggle('sorted', key === state.sortKey);
+      var existingArrow = th.querySelector('.arrow');
+      if (existingArrow) existingArrow.remove();
+      if (key === state.sortKey) {
+        var arrow = document.createElement('span');
+        arrow.className = 'arrow';
+        arrow.textContent = state.sortDir === 'desc' ? '↓' : '↑';
+        th.appendChild(arrow);
+      }
+    });
+  }
+
+  function renderTable(){
+    updateSortHeaders();
+    var tbody = document.getElementById('tbody');
+    tbody.innerHTML = '';
+    var list = sortedStocks();
+    list.forEach(function(s){
+      var tr = document.createElement('tr');
+      tr.dataset.id = s.id;
+      if (!state.included[s.id]) tr.classList.add('excluded');
+
+      var tdCheck = document.createElement('td');
+      tdCheck.className = 'col-check';
+      var checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = !!state.included[s.id];
+      checkbox.setAttribute('aria-label', 'Inkludera ' + s.name + ' i bankindexet');
+      checkbox.addEventListener('change', function(){
+        state.included[s.id] = checkbox.checked;
+        tr.classList.toggle('excluded', !checkbox.checked);
+        renderChart();
+        updateFooter();
+      });
+      tdCheck.appendChild(checkbox);
+      tr.appendChild(tdCheck);
+
+      var thName = document.createElement('th');
+      thName.className = 'col-name';
+      thName.scope = 'row';
+      var nameCell = document.createElement('div');
+      nameCell.className = 'name-cell';
+      var nameEl = document.createElement('span');
+      nameEl.textContent = s.name;
+      var fullEl = document.createElement('span');
+      fullEl.className = 'full';
+      fullEl.textContent = s.fullName;
+      var pill = document.createElement('span');
+      pill.className = 'cat-pill ' + s.category;
+      pill.textContent = CAT_LABEL[s.category] || s.category;
+      nameCell.appendChild(nameEl);
+      nameCell.appendChild(fullEl);
+      nameCell.appendChild(pill);
+      thName.appendChild(nameCell);
+      tr.appendChild(thName);
+
+      var tdPrice = document.createElement('td');
+      var priceCell = document.createElement('div');
+      priceCell.className = 'price-cell';
+      var pEl = document.createElement('span');
+      pEl.className = 'p num';
+      pEl.id = 'price-' + s.id;
+      pEl.textContent = fmtNum(s.price, 2) + ' ' + s.currency;
+      priceCell.appendChild(pEl);
+      tdPrice.appendChild(priceCell);
+      tr.appendChild(tdPrice);
+
+      tr.appendChild(pctCell(s.changeToday, 'today-' + s.id));
+      tr.appendChild(pctCell(s.change3m));
+      tr.appendChild(pctCell(s.change12m));
+
+      var tdMcap = document.createElement('td');
+      tdMcap.className = 'num';
+      tdMcap.textContent = fmtMcap(s.marketCap);
+      tr.appendChild(tdMcap);
+
+      var tdDiv = document.createElement('td');
+      tdDiv.className = 'num';
+      tdDiv.textContent = s.dividendYield != null ? fmtNum(s.dividendYield, 2) + '%' : '—';
+      tr.appendChild(tdDiv);
+
+      var tdPayout = document.createElement('td');
+      tdPayout.className = 'num';
+      tdPayout.textContent = s.payoutRatio != null ? fmtNum(s.payoutRatio, 0) + '%' : '—';
+      tr.appendChild(tdPayout);
+
+      var tdPE = document.createElement('td');
+      tdPE.className = 'num';
+      tdPE.textContent = s.trailingPE != null ? fmtNum(s.trailingPE, 1) : '—';
+      tr.appendChild(tdPE);
+
+      var tdFPE = document.createElement('td');
+      tdFPE.className = 'num';
+      tdFPE.textContent = s.forwardPE != null ? fmtNum(s.forwardPE, 1) : '—';
+      tr.appendChild(tdFPE);
+
+      var tdPB = document.createElement('td');
+      tdPB.className = 'num';
+      tdPB.textContent = s.priceToBook != null ? fmtNum(s.priceToBook, 2) : '—';
+      tr.appendChild(tdPB);
+
+      var tdBuy = document.createElement('td');
+      tdBuy.className = 'buy-cell';
+      var buyBtn = document.createElement('button');
+      buyBtn.className = 'buy-btn';
+      buyBtn.type = 'button';
+      buyBtn.textContent = 'Köp';
+      var menu = document.createElement('div');
+      menu.className = 'buy-menu';
+      var avanzaUrl = 'https://www.avanza.se/aktier/handla.html/screener?free_text_search=' + encodeURIComponent(s.name);
+      var nordnetUrl = 'https://www.nordnet.se/marknaden/aktiekurser?query=' + encodeURIComponent(s.name);
+      menu.innerHTML =
+        '<a href="' + avanzaUrl + '" target="_blank" rel="noopener"><span class="broker-dot avanza"></span>Avanza</a>' +
+        '<a href="' + nordnetUrl + '" target="_blank" rel="noopener"><span class="broker-dot nordnet"></span>Nordnet</a>';
+      buyBtn.addEventListener('click', function(e){
+        e.stopPropagation();
+        var wasOpen = menu.classList.contains('open');
+        closeAllMenus();
+        if (!wasOpen) menu.classList.add('open');
+      });
+      tdBuy.appendChild(buyBtn);
+      tdBuy.appendChild(menu);
+      tr.appendChild(tdBuy);
+
+      tbody.appendChild(tr);
+    });
+    updateFooter();
+  }
+
+  function pctCell(v, id){
+    var td = document.createElement('td');
+    td.className = 'num ' + pctClass(v);
+    if (id) td.id = id;
+    td.textContent = fmtPct(v, 2);
+    return td;
+  }
+
+  function updateFooter(){
+    var included = DATA.stocks.filter(function(s){ return state.included[s.id]; });
+    document.getElementById('indexCount').textContent = included.length + ' av ' + DATA.stocks.length;
+    var totalMcap = included.reduce(function(sum, s){ return sum + (s.marketCap || 0); }, 0);
+    document.getElementById('indexMcap').textContent = fmtMcap(totalMcap);
+  }
+
+  // ---- Index computation: market-cap-weighted, rebased to 100 at series start ----
+  function computeBankIndexSeries(){
+    var included = DATA.stocks.filter(function(s){ return state.included[s.id]; });
+    if (!included.length) return [];
+
+    var tSets = included.map(function(s){
+      var m = {};
+      s.history.forEach(function(p){ m[p.t] = p.c; });
+      return m;
+    });
+    var allTimestamps = included[0].history.map(function(p){ return p.t; });
+    included.forEach(function(s, i){
+      allTimestamps = allTimestamps.filter(function(t){ return tSets[i][t] !== undefined; });
+    });
+    if (!allTimestamps.length) return [];
+
+    var baseT = allTimestamps[0];
+    var baseCloses = included.map(function(s, i){ return tSets[i][baseT]; });
+    // Weight by market cap at build time (approximation held constant across the series).
+    var weights = included.map(function(s){ return s.marketCap || 1; });
+    var totalWeight = weights.reduce(function(a, b){ return a + b; }, 0);
+
+    return allTimestamps.map(function(t){
+      var indexVal = 0;
+      included.forEach(function(s, i){
+        var price = tSets[i][t];
+        var relRet = price / baseCloses[i];
+        indexVal += (weights[i] / totalWeight) * relRet;
+      });
+      return { t: t, c: indexVal * 100 };
+    });
+  }
+
+  function rebaseSeries(points){
+    if (!points.length) return [];
+    var base = points[0].c;
+    return points.map(function(p){ return { t: p.t, c: (p.c / base) * 100 }; });
+  }
+
+  function filterByRange(points, days){
+    if (days >= 9999 || !points.length) return points;
+    var lastT = points[points.length - 1].t;
+    var cutoff = lastT - days * 86400;
+    return points.filter(function(p){ return p.t >= cutoff; });
+  }
+
+  function renderChart(){
+    var bankSeriesFull = computeBankIndexSeries();
+    var omxSeriesFull = rebaseSeries(DATA.omxs30);
+
+    var bankSeries = filterByRange(bankSeriesFull, state.range);
+    var omxSeries = filterByRange(omxSeriesFull, state.range);
+
+    // Re-rebase to 100 at the start of the selected window so both ranges are comparable.
+    bankSeries = rebaseSeries(bankSeries);
+    omxSeries = rebaseSeries(omxSeries);
+
+    var svg = document.getElementById('chart');
+    var W = 1000, H = 220, padL = 46, padR = 14, padT = 14, padB = 26;
+    svg.innerHTML = '';
+
+    var css = getComputedStyle(document.documentElement);
+    var colorA = css.getPropertyValue('--index-a').trim();
+    var colorB = css.getPropertyValue('--index-b').trim();
+    var colorInk = css.getPropertyValue('--ink-soft').trim();
+    var colorLine = css.getPropertyValue('--line-soft').trim();
+
+    var allVals = bankSeries.concat(omxSeries).map(function(p){ return p.c; });
+    if (!allVals.length) return;
+    var minV = Math.min.apply(null, allVals);
+    var maxV = Math.max.apply(null, allVals);
+    var pad = (maxV - minV) * 0.08 || 1;
+    minV -= pad; maxV += pad;
+
+    var minT = Math.min(bankSeries[0] ? bankSeries[0].t : Infinity, omxSeries[0] ? omxSeries[0].t : Infinity);
+    var maxT = Math.max(bankSeries.length ? bankSeries[bankSeries.length-1].t : -Infinity, omxSeries.length ? omxSeries[omxSeries.length-1].t : -Infinity);
+
+    function x(t){ return padL + ((t - minT) / (maxT - minT || 1)) * (W - padL - padR); }
+    function y(v){ return padT + (1 - (v - minV) / (maxV - minV || 1)) * (H - padT - padB); }
+
+    function pathFor(series){
+      return series.map(function(p, i){ return (i === 0 ? 'M' : 'L') + x(p.t).toFixed(2) + ',' + y(p.c).toFixed(2); }).join(' ');
+    }
+
+    var ns = 'http://www.w3.org/2000/svg';
+    function el(tag, attrs){
+      var e = document.createElementNS(ns, tag);
+      for (var k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    }
+
+    // gridlines + y labels (100 baseline + min/max)
+    var gridVals = [100];
+    if (100 < minV || 100 > maxV) gridVals = [];
+    [minV + pad*0.3, maxV - pad*0.3].forEach(function(v){ gridVals.push(v); });
+    var uniqueGrid = [Math.round(minV+pad), 100, Math.round(maxV-pad)].filter(function(v,i,arr){ return arr.indexOf(v)===i; });
+    uniqueGrid.forEach(function(v){
+      if (v < minV || v > maxV) return;
+      var gy = y(v);
+      svg.appendChild(el('line', { x1: padL, x2: W - padR, y1: gy.toFixed(2), y2: gy.toFixed(2), stroke: colorLine, 'stroke-width': v === 100 ? 1.4 : 1, 'stroke-dasharray': v === 100 ? '4 3' : 'none' }));
+      var label = el('text', { x: padL - 8, y: (gy+4).toFixed(2), 'text-anchor': 'end', 'font-size': 11, 'font-family': 'IBM Plex Mono, monospace', fill: colorInk });
+      label.textContent = Math.round(v);
+      svg.appendChild(label);
+    });
+
+    // x-axis labels (first, middle, last date)
+    var allSeriesForLabels = bankSeries.length ? bankSeries : omxSeries;
+    if (allSeriesForLabels.length) {
+      [0, Math.floor(allSeriesForLabels.length/2), allSeriesForLabels.length-1].forEach(function(idx){
+        var p = allSeriesForLabels[idx];
+        var d = new Date(p.t * 1000);
+        var label = el('text', { x: x(p.t).toFixed(2), y: H - 8, 'text-anchor': idx===0?'start':(idx===allSeriesForLabels.length-1?'end':'middle'), 'font-size': 11, 'font-family': 'IBM Plex Mono, monospace', fill: colorInk });
+        label.textContent = d.toLocaleDateString('sv-SE', { year: '2-digit', month: 'short' });
+        svg.appendChild(label);
+      });
+    }
+
+    if (omxSeries.length > 1) {
+      svg.appendChild(el('path', { d: pathFor(omxSeries), fill: 'none', stroke: colorB, 'stroke-width': 2, 'stroke-linejoin': 'round' }));
+    }
+    if (bankSeries.length > 1) {
+      svg.appendChild(el('path', { d: pathFor(bankSeries), fill: 'none', stroke: colorA, 'stroke-width': 2.5, 'stroke-linejoin': 'round' }));
+    }
+
+    // endpoint dots
+    if (bankSeries.length) {
+      var lastB = bankSeries[bankSeries.length-1];
+      svg.appendChild(el('circle', { cx: x(lastB.t).toFixed(2), cy: y(lastB.c).toFixed(2), r: 4, fill: colorA }));
+    }
+    if (omxSeries.length) {
+      var lastO = omxSeries[omxSeries.length-1];
+      svg.appendChild(el('circle', { cx: x(lastO.t).toFixed(2), cy: y(lastO.c).toFixed(2), r: 4, fill: colorB }));
+    }
+
+    // stats
+    var statsEl = document.getElementById('chartStats');
+    var bankReturn = bankSeries.length ? bankSeries[bankSeries.length-1].c - 100 : null;
+    var omxReturn = omxSeries.length ? omxSeries[omxSeries.length-1].c - 100 : null;
+    statsEl.innerHTML =
+      '<span><span class="stat-label">Bankindex, perioden:</span><span class="stat-value ' + pctClass(bankReturn) + '">' + fmtPct(bankReturn, 1) + '</span></span>' +
+      '<span><span class="stat-label">OMXS30, perioden:</span><span class="stat-value ' + pctClass(omxReturn) + '">' + fmtPct(omxReturn, 1) + '</span></span>' +
+      '<span><span class="stat-label">Mellanskillnad:</span><span class="stat-value ' + pctClass(bankReturn - omxReturn) + '">' + fmtPct((bankReturn||0) - (omxReturn||0), 1) + '</span></span>';
+  }
+
+  // Claude's published-artifact sandbox enforces a Content Security Policy that only
+  // allows fetch/XHR to a fixed host allowlist, which excludes Yahoo Finance and any
+  // CORS relay in front of it — so live polling is impossible there and we fall back
+  // to the build-time snapshot. Self-hosted (any other origin), the CSP doesn't apply
+  // and the relay fetch below works normally.
+  function isArtifactSandbox(){
+    return /\.claude(usercontent)?\.(ai|com)$/i.test(location.hostname) || location.hostname === 'claude.site';
+  }
+
+  function markDataAsOf(){
+    var dot = document.getElementById('liveDot');
+    var label = document.getElementById('liveLabel');
+    dot.classList.remove('loading');
+    dot.classList.add('stale');
+    label.textContent = 'Ögonblicksbild vid byggtillfället';
+  }
+
+  // ---- Live price fetch via CORS relay (r.jina.ai forwards Yahoo's chart endpoint with CORS headers) ----
+  function fetchLivePrices(){
+    var dot = document.getElementById('liveDot');
+    var label = document.getElementById('liveLabel');
+    var symbols = DATA.stocks.map(function(s){ return s.yahoo; });
+    var promises = symbols.map(function(sym){
+      var url = 'https://r.jina.ai/https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(sym) + '?range=1d&interval=1m';
+      return fetch(url, { cache: 'no-store' })
+        .then(function(r){ return r.text(); })
+        .then(function(txt){
+          var idx = txt.indexOf('{');
+          if (idx === -1) throw new Error('no json');
+          var json = JSON.parse(txt.slice(idx));
+          var meta = json.chart && json.chart.result && json.chart.result[0] && json.chart.result[0].meta;
+          if (!meta) throw new Error('no meta');
+          return { sym: sym, price: meta.regularMarketPrice, prevClose: meta.chartPreviousClose, time: meta.regularMarketTime };
+        })
+        .catch(function(){ return null; });
+    });
+
+    Promise.all(promises).then(function(results){
+      var okCount = 0;
+      results.forEach(function(res, i){
+        if (!res || typeof res.price !== 'number') return;
+        okCount++;
+        var stock = DATA.stocks[i];
+        stock.price = res.price;
+        var prevClose = res.prevClose;
+        var changeToday = (prevClose && prevClose > 0) ? ((res.price - prevClose) / prevClose) * 100 : stock.changeToday;
+        stock.changeToday = Math.round(changeToday * 100) / 100;
+
+        var priceEl = document.getElementById('price-' + stock.id);
+        if (priceEl) priceEl.textContent = fmtNum(res.price, 2) + ' ' + stock.currency;
+        var todayEl = document.getElementById('today-' + stock.id);
+        if (todayEl) {
+          todayEl.textContent = fmtPct(stock.changeToday, 2);
+          todayEl.className = 'num ' + pctClass(stock.changeToday);
+        }
+      });
+
+      dot.classList.remove('loading');
+      if (okCount > 0) {
+        label.textContent = 'Livekurser (' + okCount + '/' + results.length + ')';
+      } else {
+        dot.classList.add('stale');
+        label.textContent = 'Liveuppdatering misslyckades — visar byggtidens kurser';
+      }
+      renderTable();
+      renderChart();
+    });
+  }
+
+  loadData().then(init).catch(function(e){
+    document.getElementById('tbody').innerHTML = '<tr><td colspan="13">Kunde inte ladda data: ' + e.message + '</td></tr>';
+  });
+})();
+</script>

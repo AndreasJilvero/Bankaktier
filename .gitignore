@@ -1,0 +1,7 @@
+node_modules/
+build/history.sqlite-wal
+build/history.sqlite-shm
+site/
+.DS_Store
+Thumbs.db
+*.log
