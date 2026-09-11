@@ -21,17 +21,20 @@ wrangler deploy
 ```
 
 This prints the Worker's URL, something like:
-`https://bankaktier-yahoo-proxy.<your-subdomain>.workers.dev`
+`https://bankaktier-yahoo-proxy.<your-account-subdomain>.workers.dev`
+
+Note: the account subdomain (e.g. "suboptimalprime") comes before ".workers.dev",
+and the Worker's name (from `wrangler.toml`, "bankaktier-yahoo-proxy") comes first —
+the full URL is `<worker-name>.<account-subdomain>.workers.dev`, not just
+`<account-subdomain>.workers.dev` on its own.
 
 Copy that URL — you'll need it in `build/app.html`.
 
 ## Wiring it into the app
 
-In `build/app.html`, replace the `r.jina.ai` URL in `fetchYahooQuote()` with:
-
-```js
-'https://bankaktier-yahoo-proxy.<your-subdomain>.workers.dev/?symbol=' + encodeURIComponent(symbol)
-```
+`build/app.html` already points `YAHOO_PROXY_URL` at the deployed Worker:
+`https://bankaktier-yahoo-proxy.suboptimalprime.workers.dev`. If you ever redeploy
+under a different account/subdomain, update that constant to match.
 
 ## Updating allowed origins
 
