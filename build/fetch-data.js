@@ -35,7 +35,7 @@ async function fetchChart(symbol, range) {
 }
 
 async function fetchSummary(symbol, cookieHeader, crumb) {
-  const modules = 'summaryDetail,defaultKeyStatistics,price';
+  const modules = 'summaryDetail,defaultKeyStatistics,price,financialData';
   const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules}&crumb=${encodeURIComponent(crumb)}`;
   const res = await fetch(url, { headers: { 'User-Agent': UA, Cookie: cookieHeader } });
   const json = await res.json();
@@ -143,6 +143,7 @@ async function main() {
 
     const sd = summary?.summaryDetail || {};
     const ks = summary?.defaultKeyStatistics || {};
+    const fd = summary?.financialData || {};
 
     const trailingDivSum = (() => {
       if (!dividends.length) return null;
@@ -173,6 +174,12 @@ async function main() {
       dividendYield: raw(sd.dividendYield) != null ? Math.round(raw(sd.dividendYield) * 10000) / 100 : (trailingDivSum ? Math.round((trailingDivSum / meta.regularMarketPrice) * 10000) / 100 : null),
       dividendRate: raw(sd.dividendRate) ?? trailingDivSum,
       payoutRatio: sane(raw(sd.payoutRatio) != null ? Math.round(raw(sd.payoutRatio) * 10000) / 100 : null, 0, 300),
+      returnOnEquity: sane(raw(fd.returnOnEquity) != null ? Math.round(raw(fd.returnOnEquity) * 10000) / 100 : null, -100, 100),
+      targetMeanPrice: raw(fd.targetMeanPrice),
+      analystCount: raw(fd.numberOfAnalystOpinions),
+      upside: raw(fd.targetMeanPrice) != null && meta.regularMarketPrice
+        ? Math.round(((raw(fd.targetMeanPrice) - meta.regularMarketPrice) / meta.regularMarketPrice) * 10000) / 100
+        : null,
     });
 
     await new Promise((r) => setTimeout(r, 300));

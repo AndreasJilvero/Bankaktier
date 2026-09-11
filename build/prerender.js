@@ -35,7 +35,7 @@ function renderRow(s) {
   const nordnetUrl = `https://www.nordnet.se/marknaden/aktiekurser?query=${encodeURIComponent(s.name)}`;
   return `
           <tr data-id="${esc(s.id)}">
-            <td class="col-check"><input type="checkbox" checked aria-label="Visa ${esc(s.name)} i diagrammet"></td>
+            <td class="col-check"><input type="checkbox" aria-label="Visa ${esc(s.name)} i diagrammet"></td>
             <th class="col-name" scope="row">
               <div class="name-cell">
                 <span>${esc(s.name)}</span>
@@ -53,6 +53,8 @@ function renderRow(s) {
             <td class="num">${s.trailingPE != null ? fmtNum(s.trailingPE, 1) : '—'}</td>
             <td class="num">${s.forwardPE != null ? fmtNum(s.forwardPE, 1) : '—'}</td>
             <td class="num">${s.priceToBook != null ? fmtNum(s.priceToBook, 2) : '—'}</td>
+            <td class="num">${s.returnOnEquity != null ? fmtNum(s.returnOnEquity, 1) + '%' : '—'}</td>
+            <td><div class="price-cell"><span class="num ${pctClass(s.upside)}">${fmtPct(s.upside, 1)}</span><span class="subtext">${s.analystCount != null ? s.analystCount + ' analytiker' : ''}</span></div></td>
             <td class="buy-cell">
               <button class="buy-btn" type="button">Köp</button>
               <div class="buy-menu">
@@ -69,7 +71,6 @@ function buildStandaloneSite(data, { siteUrl } = {}) {
 
   const stocksSorted = data.stocks.slice().sort((a, b) => (b.marketCap || 0) - (a.marketCap || 0));
   const rowsHtml = stocksSorted.map(renderRow).join('\n');
-  const totalMcap = data.stocks.reduce((sum, s) => sum + (s.marketCap || 0), 0);
   const buildStamp = new Date(data.generatedAt).toLocaleString('sv-SE', { dateStyle: 'medium', timeStyle: 'short' });
 
   fragment = fragment.replace(
@@ -78,11 +79,11 @@ function buildStandaloneSite(data, { siteUrl } = {}) {
   );
   fragment = fragment.replace(
     '<span class="index-count" id="indexCount">8 av 8</span>',
-    `<span class="index-count" id="indexCount">${data.stocks.length} av ${data.stocks.length}</span>`
+    `<span class="index-count" id="indexCount">0 av ${data.stocks.length}</span>`
   );
   fragment = fragment.replace(
     '<span class="index-count" id="indexMcap">—</span>',
-    `<span class="index-count" id="indexMcap">${fmtMcap(totalMcap)}</span>`
+    `<span class="index-count" id="indexMcap">${fmtMcap(0)}</span>`
   );
   fragment = fragment.replace(
     '<span id="buildStamp">Byggd data: —</span>',

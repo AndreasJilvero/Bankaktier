@@ -179,6 +179,7 @@
   }
   .price-cell{display:flex; flex-direction:column; align-items:flex-end; gap:1px;}
   .price-cell .p{font-family:'IBM Plex Mono', monospace; font-weight:600;}
+  .price-cell .subtext{font-size:0.62rem; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
 
   .buy-cell{position:relative; text-align:center;}
   .buy-btn{
@@ -264,13 +265,15 @@
             <th data-sort="trailingPE" title="P/E-tal">P/E</th>
             <th data-sort="forwardPE" title="P/E-tal, prognos">P/E prog.</th>
             <th data-sort="priceToBook" title="Pris/eget kapital">P/B</th>
+            <th data-sort="returnOnEquity" title="Räntabilitet på eget kapital">ROE</th>
+            <th data-sort="upside" title="Analytikernas snittriktkurs vs. nuvarande kurs">Riktkurs</th>
             <th></th>
           </tr>
         </thead>
         <tbody id="tbody"></tbody>
         <tfoot>
           <tr>
-            <td colspan="13">
+            <td colspan="15">
               <span class="index-count" id="indexCount">8 av 8</span> aktier visas i diagrammet &middot; deras sammanlagda börsvärde: <span class="index-count" id="indexMcap">—</span>
             </td>
           </tr>
@@ -326,7 +329,7 @@
 
   function init(data){
     DATA = data;
-    DATA.stocks.forEach(function(s){ state.included[s.id] = true; });
+    DATA.stocks.forEach(function(s){ state.included[s.id] = false; });
     document.getElementById('buildStamp').textContent = 'Byggd data: ' + new Date(DATA.generatedAt).toLocaleString('sv-SE', { dateStyle: 'medium', timeStyle: 'short' });
     renderTable();
     initTradingViewChart();
@@ -475,6 +478,25 @@
       tdPB.className = 'num';
       tdPB.textContent = s.priceToBook != null ? fmtNum(s.priceToBook, 2) : '—';
       tr.appendChild(tdPB);
+
+      var tdROE = document.createElement('td');
+      tdROE.className = 'num';
+      tdROE.textContent = s.returnOnEquity != null ? fmtNum(s.returnOnEquity, 1) + '%' : '—';
+      tr.appendChild(tdROE);
+
+      var tdUpside = document.createElement('td');
+      var upsideCell = document.createElement('div');
+      upsideCell.className = 'price-cell';
+      var upsideEl = document.createElement('span');
+      upsideEl.className = 'num ' + pctClass(s.upside);
+      upsideEl.textContent = fmtPct(s.upside, 1);
+      var analystEl = document.createElement('span');
+      analystEl.className = 'subtext';
+      analystEl.textContent = s.analystCount != null ? s.analystCount + ' analytiker' : '';
+      upsideCell.appendChild(upsideEl);
+      upsideCell.appendChild(analystEl);
+      tdUpside.appendChild(upsideCell);
+      tr.appendChild(tdUpside);
 
       var tdBuy = document.createElement('td');
       tdBuy.className = 'buy-cell';
@@ -653,7 +675,7 @@
   }
 
   loadData().then(init).catch(function(e){
-    document.getElementById('tbody').innerHTML = '<tr><td colspan="13">Kunde inte ladda data: ' + e.message + '</td></tr>';
+    document.getElementById('tbody').innerHTML = '<tr><td colspan="15">Kunde inte ladda data: ' + e.message + '</td></tr>';
   });
 })();
 </script>
