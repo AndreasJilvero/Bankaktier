@@ -139,7 +139,13 @@
     padding:18px 22px 14px;
   }
   .table-panel-head h2{font-size:1.15rem; font-weight:600;}
-  .table-panel-head .hint{font-size:0.8rem; color:var(--ink-soft); max-width:44ch; text-align:right;}
+  .table-panel-head .hint{font-size:0.8rem; color:var(--ink-soft); max-width:44ch; margin:4px 0 0;}
+  .perf-toggle{display:flex; gap:4px; background:var(--line-soft); padding:3px; border-radius:8px; flex:none;}
+  .perf-toggle button{
+    border:none; background:transparent; padding:6px 12px; border-radius:6px; font-size:0.78rem;
+    font-family:'IBM Plex Sans', sans-serif; color:var(--ink-soft); cursor:pointer; font-weight:500; white-space:nowrap;
+  }
+  .perf-toggle button.active{background:var(--paper-raised); color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,0.08);}
   .table-scroll{overflow-x:auto; border-top:1px solid var(--line-soft);}
   table{border-collapse:collapse; width:100%; min-width:960px; font-size:0.88rem;}
   thead th{
@@ -197,26 +203,6 @@
   .rec-cell{display:flex; flex-direction:column; align-items:flex-end; gap:3px;}
   .rec-cell .subtext{font-size:0.62rem; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
 
-  .buy-cell{position:relative; text-align:center;}
-  .buy-btn{
-    font-family:'IBM Plex Sans'; font-weight:600; font-size:0.8rem; color:#fff; background:var(--copper);
-    border:none; padding:7px 15px; border-radius:7px; cursor:pointer; white-space:nowrap;
-  }
-  .buy-btn:hover{background:var(--copper-deep);}
-  .buy-menu{
-    position:absolute; right:0; top:calc(100% + 6px); background:var(--paper-raised); border:1px solid var(--line);
-    border-radius:9px; box-shadow:var(--shadow); padding:6px; z-index:10; display:none; min-width:150px; text-align:left;
-  }
-  .buy-menu.open{display:block;}
-  .buy-menu a{
-    display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:6px; text-decoration:none;
-    font-size:0.85rem; color:var(--ink); font-weight:500;
-  }
-  .buy-menu a:hover{background:var(--spruce-wash);}
-  .buy-menu .broker-dot{width:8px;height:8px;border-radius:50%;flex:none;}
-  .broker-dot.avanza{background:#E4004B;}
-  .broker-dot.nordnet{background:#003C5B;}
-
   tfoot td{padding:13px 14px; font-size:0.8rem; color:var(--ink-soft); border-top:2px solid var(--ink);}
   tfoot .index-count{font-family:'IBM Plex Mono', monospace; font-weight:600; color:var(--spruce-deep);}
 
@@ -262,8 +248,14 @@
 
   <section class="table-panel">
     <div class="table-panel-head">
-      <h2>Aktier</h2>
-      <p class="hint">Sorterad efter börsvärde. Kryssa i checkboxen för att visa aktien i diagrammet ovan.</p>
+      <div>
+        <h2>Aktier</h2>
+        <p class="hint">Sorterad efter börsvärde. Kryssa i checkboxen för att visa aktien i diagrammet ovan.</p>
+      </div>
+      <div class="perf-toggle" id="perfToggle" role="group" aria-label="Visa avkastning">
+        <button data-mode="absolute" class="active">Egen avkastning</button>
+        <button data-mode="relative">Relativt OMXS30</button>
+      </div>
     </div>
     <div class="table-scroll">
       <table>
@@ -287,13 +279,12 @@
             <th data-sort="profitMargin" title="Vinstmarginal">Vinstmarg.</th>
             <th title="Analytikerrekommendationer: köp / behåll / sälj">Rek.</th>
             <th data-sort="upside" title="Analytikernas snittriktkurs vs. nuvarande kurs">Riktkurs</th>
-            <th></th>
           </tr>
         </thead>
         <tbody id="tbody"></tbody>
         <tfoot>
           <tr>
-            <td colspan="19">
+            <td colspan="18">
               <span class="index-count" id="indexCount">8 av 8</span> aktier visas i diagrammet &middot; deras sammanlagda börsvärde: <span class="index-count" id="indexMcap">—</span>
             </td>
           </tr>
@@ -321,7 +312,7 @@
     sortKey: 'marketCap',
     sortDir: 'desc',
     included: {},
-    range: 9999
+    perfMode: 'absolute'
   };
 
   var CAT_LABEL = { storbank: 'Storbank', nisch: 'Nischbank' };
@@ -371,22 +362,29 @@
         renderTable();
       });
     });
-    document.addEventListener('click', function(e){
-      if (!e.target.closest('.buy-cell')) closeAllMenus();
+    document.getElementById('perfToggle').addEventListener('click', function(e){
+      var btn = e.target.closest('button[data-mode]');
+      if (!btn) return;
+      state.perfMode = btn.getAttribute('data-mode');
+      Array.prototype.forEach.call(document.querySelectorAll('#perfToggle button'), function(b){
+        b.classList.toggle('active', b === btn);
+      });
+      renderTable();
     });
-  }
-
-  function closeAllMenus(){
-    document.querySelectorAll('.buy-menu.open').forEach(function(m){ m.classList.remove('open'); });
   }
 
   function sortedStocks(){
     var arr = DATA.stocks.slice();
     var key = state.sortKey, dir = state.sortDir;
+    var perfKeys = { changeToday: 'changeToday', change3m: 'change3m', change12m: 'change12m' };
     arr.sort(function(a, b){
       var av = a[key], bv = b[key];
       if (key === 'name') {
         return dir === 'asc' ? a.name.localeCompare(b.name, 'sv') : b.name.localeCompare(a.name, 'sv');
+      }
+      if (perfKeys[key]) {
+        av = perfValue(av, DATA.omxBenchmark[perfKeys[key]]);
+        bv = perfValue(bv, DATA.omxBenchmark[perfKeys[key]]);
       }
       var an = (av === null || av === undefined) ? -Infinity : av;
       var bn = (bv === null || bv === undefined) ? -Infinity : bv;
@@ -468,9 +466,9 @@
 
       tr.appendChild(rangeCell(s));
 
-      tr.appendChild(pctCell(s.changeToday, 'today-' + s.id));
-      tr.appendChild(pctCell(s.change3m));
-      tr.appendChild(pctCell(s.change12m));
+      tr.appendChild(pctCell(perfValue(s.changeToday, DATA.omxBenchmark.changeToday), 'today-' + s.id));
+      tr.appendChild(pctCell(perfValue(s.change3m, DATA.omxBenchmark.change3m)));
+      tr.appendChild(pctCell(perfValue(s.change12m, DATA.omxBenchmark.change12m)));
 
       var tdBeta = document.createElement('td');
       tdBeta.className = 'num';
@@ -533,29 +531,6 @@
       tdUpside.appendChild(upsideCell);
       tr.appendChild(tdUpside);
 
-      var tdBuy = document.createElement('td');
-      tdBuy.className = 'buy-cell';
-      var buyBtn = document.createElement('button');
-      buyBtn.className = 'buy-btn';
-      buyBtn.type = 'button';
-      buyBtn.textContent = 'Köp';
-      var menu = document.createElement('div');
-      menu.className = 'buy-menu';
-      var avanzaUrl = 'https://www.avanza.se/aktier/handla.html/screener?free_text_search=' + encodeURIComponent(s.name);
-      var nordnetUrl = 'https://www.nordnet.se/marknaden/aktiekurser?query=' + encodeURIComponent(s.name);
-      menu.innerHTML =
-        '<a href="' + avanzaUrl + '" target="_blank" rel="noopener"><span class="broker-dot avanza"></span>Avanza</a>' +
-        '<a href="' + nordnetUrl + '" target="_blank" rel="noopener"><span class="broker-dot nordnet"></span>Nordnet</a>';
-      buyBtn.addEventListener('click', function(e){
-        e.stopPropagation();
-        var wasOpen = menu.classList.contains('open');
-        closeAllMenus();
-        if (!wasOpen) menu.classList.add('open');
-      });
-      tdBuy.appendChild(buyBtn);
-      tdBuy.appendChild(menu);
-      tr.appendChild(tdBuy);
-
       tbody.appendChild(tr);
     });
     updateFooter();
@@ -567,6 +542,14 @@
     if (id) td.id = id;
     td.textContent = fmtPct(v, 2);
     return td;
+  }
+
+  // In "relative" mode, show excess return vs. OMXS30 over the same period
+  // (stock return minus index return) instead of the stock's raw return.
+  function perfValue(stockPct, benchmarkPct){
+    if (stockPct == null) return null;
+    if (state.perfMode !== 'relative' || benchmarkPct == null) return stockPct;
+    return Math.round((stockPct - benchmarkPct) * 100) / 100;
   }
 
   function rangeCell(s){
@@ -664,10 +647,18 @@
     if (rootTheme === 'dark') isDark = true;
     if (rootTheme === 'light') isDark = false;
 
-    var compareSymbols = DATA.stocks
-      .filter(function(s){ return state.included[s.id] && s.tradingview; })
-      .map(function(s){ return { symbol: s.tradingview, position: 'SameScale' }; });
-    compareSymbols.unshift({ symbol: 'OMXSTO:SX3010GI', position: 'SameScale' });
+    // TradingView's free widget doesn't document a per-compare-symbol color field,
+    // but it also doesn't validate the compareSymbols object shape client-side (it's
+    // passed straight through to the chart iframe) — lineColor is included on a
+    // best-effort basis so each added stock is visually distinguishable when several
+    // are plotted together; if TradingView ignores it, colors just fall back to its
+    // own automatic palette and nothing else is affected.
+    var COMPARE_COLORS = ['#B5601F', '#5B7A99', '#8A5FBF', '#C24545', '#3D8C6C', '#B08900', '#6B7FD7', '#9C5B8C', '#4E9A9A'];
+    var includedStocks = DATA.stocks.filter(function(s){ return state.included[s.id] && s.tradingview; });
+    var compareSymbols = includedStocks.map(function(s, i){
+      return { symbol: s.tradingview, position: 'SameScale', lineColor: COMPARE_COLORS[i % COMPARE_COLORS.length] };
+    });
+    compareSymbols.unshift({ symbol: 'OMXSTO:SX3010GI', position: 'SameScale', lineColor: '#2B5C4B' });
 
     container.hidden = false;
     fallback.hidden = true;
@@ -750,8 +741,9 @@
         if (priceEl) priceEl.textContent = fmtNum(res.price, 2) + ' ' + stock.currency;
         var todayEl = document.getElementById('today-' + stock.id);
         if (todayEl) {
-          todayEl.textContent = fmtPct(stock.changeToday, 2);
-          todayEl.className = 'num ' + pctClass(stock.changeToday);
+          var displayToday = perfValue(stock.changeToday, DATA.omxBenchmark.changeToday);
+          todayEl.textContent = fmtPct(displayToday, 2);
+          todayEl.className = 'num ' + pctClass(displayToday);
         }
       });
 
@@ -767,7 +759,7 @@
   }
 
   loadData().then(init).catch(function(e){
-    document.getElementById('tbody').innerHTML = '<tr><td colspan="19">Kunde inte ladda data: ' + e.message + '</td></tr>';
+    document.getElementById('tbody').innerHTML = '<tr><td colspan="18">Kunde inte ladda data: ' + e.message + '</td></tr>';
   });
 })();
 </script>

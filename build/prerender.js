@@ -50,8 +50,6 @@ function renderRecCell(s) {
 }
 
 function renderRow(s) {
-  const avanzaUrl = `https://www.avanza.se/aktier/handla.html/screener?free_text_search=${encodeURIComponent(s.name)}`;
-  const nordnetUrl = `https://www.nordnet.se/marknaden/aktiekurser?query=${encodeURIComponent(s.name)}`;
   return `
           <tr data-id="${esc(s.id)}">
             <td class="col-check"><input type="checkbox" aria-label="Visa ${esc(s.name)} i diagrammet"></td>
@@ -78,13 +76,6 @@ function renderRow(s) {
             <td class="num">${s.profitMargin != null ? fmtNum(s.profitMargin, 1) + '%' : '—'}</td>
             ${renderRecCell(s)}
             <td><div class="price-cell"><span class="num ${pctClass(s.upside)}">${fmtPct(s.upside, 1)}</span><span class="subtext">${s.analystCount != null ? s.analystCount + ' analytiker' : ''}</span></div></td>
-            <td class="buy-cell">
-              <button class="buy-btn" type="button">Köp</button>
-              <div class="buy-menu">
-                <a href="${esc(avanzaUrl)}" target="_blank" rel="noopener"><span class="broker-dot avanza"></span>Avanza</a>
-                <a href="${esc(nordnetUrl)}" target="_blank" rel="noopener"><span class="broker-dot nordnet"></span>Nordnet</a>
-              </div>
-            </td>
           </tr>`;
 }
 

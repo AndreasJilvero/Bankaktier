@@ -200,13 +200,21 @@ async function main() {
   process.stdout.write('Syncing OMXS30 index... ');
   const omxSync = await syncSymbolHistory(db, '^OMX');
   console.log(omxSync.wasBackfill ? `backfilled ${omxSync.fetchedNewPoints} pts` : `+${omxSync.fetchedNewPoints} pts since last run`);
-  // OMXS30 and the bank sector index (OMXSTO:SX3010GI) are now plotted directly by the
-  // embedded TradingView chart, not computed client-side, so their history no longer
-  // needs to ship in data.json — still kept in the SQLite cache in case that changes.
+  // OMXS30's own price history is now plotted directly by the embedded TradingView
+  // chart, not computed client-side — but its today/3m/12m returns are still needed
+  // so the table's "relative to OMXS30" toggle can subtract them from each stock's
+  // own return (excess return / alpha) without shipping the full history array.
+  const omxPoints = historyDb.getHistory(db, '^OMX', cutoffT);
+  const omxBenchmark = {
+    changeToday: omxSync.meta.regularMarketChangePercent != null ? Math.round(omxSync.meta.regularMarketChangePercent * 100) / 100 : null,
+    change3m: pctChangeOverDays(omxPoints, 91),
+    change12m: pctChangeOverDays(omxPoints, 365),
+  };
 
   const output = {
     generatedAt: new Date().toISOString(),
     stocks: stocksOut,
+    omxBenchmark: omxBenchmark,
   };
 
   fs.writeFileSync(path.join(__dirname, 'data.json'), JSON.stringify(output));
