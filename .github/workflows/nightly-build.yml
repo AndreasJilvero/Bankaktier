@@ -32,6 +32,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Verify native module loads
+        run: node -e "require('better-sqlite3'); console.log('better-sqlite3 OK')" || (npm rebuild better-sqlite3 --build-from-source && node -e "require('better-sqlite3'); console.log('better-sqlite3 OK after rebuild')")
+
       - name: Fetch latest prices, fundamentals and history
         env:
           SITE_URL: ${{ vars.SITE_URL }}

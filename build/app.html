@@ -290,6 +290,7 @@
   <footer>
     <span>Nyckeltal (P/E, P/B, direktavkastning, utdelningsandel) och historik hämtade vid byggtillfället från Yahoo Finance. Kurs och dagens förändring uppdateras direkt i webbläsaren där det tillåts av sidans värdmiljö; annars visas byggtidens ögonblicksbild, tydligt tidsstämplad högst upp.</span>
     <span>P/E-prognos avser analytikerkonsensus för kommande räkenskapsår där sådan finns. Nyckeltal som saknar rimliga värden (t.ex. till följd av valutaavvikelser i källdatan) visas som "—" istället för ett missvisande tal.</span>
+    <span>Bolag som noterats kortare tid än den valda perioden (t.ex. en nyligen börsnoterad bank) saknar egna kurser för tiden före notering. För den perioden approximeras bolagets bidrag till bankindexet med OMXS30:s utveckling, så att indexet kan visas för hela perioden istället för att kortas av till det yngsta bolagets historik.</span>
     <span>Endast för information, inte investeringsrådgivning. Källa: Yahoo Finance.</span>
   </footer>
 
@@ -535,19 +536,46 @@
   }
 
   // ---- Index computation: market-cap-weighted, rebased to 100 at series start ----
+  // Some banks (e.g. a recent IPO) have less history than others. Rather than
+  // truncating the whole index to the shortest-lived stock, synthesize a stand-in
+  // price for the missing early period by walking OMXS30's relative day-to-day
+  // return backwards from the stock's actual first price. This is clearly a proxy,
+  // not real trading data, but it lets the index cover the full window instead of
+  // silently losing years of the other stocks' real performance.
+  function backfillWithIndexProxy(stockHistory, omxHistory) {
+    if (!stockHistory.length || !omxHistory.length) return stockHistory;
+    var firstStockT = stockHistory[0].t;
+    var omxBefore = omxHistory.filter(function(p){ return p.t < firstStockT; });
+    if (!omxBefore.length) return stockHistory;
+
+    var omxAtOrAfter = omxHistory.filter(function(p){ return p.t >= firstStockT; })[0];
+    if (!omxAtOrAfter) return stockHistory;
+
+    var anchorPrice = stockHistory[0].c;
+    var anchorOmx = omxAtOrAfter.c;
+    var proxied = omxBefore.map(function(p){
+      return { t: p.t, c: anchorPrice * (p.c / anchorOmx) };
+    });
+    return proxied.concat(stockHistory);
+  }
+
   function computeBankIndexSeries(){
     var included = DATA.stocks.filter(function(s){ return state.included[s.id]; });
     if (!included.length) return [];
 
+    var omxHistory = DATA.omxs30;
     var tSets = included.map(function(s){
+      var extended = backfillWithIndexProxy(s.history, omxHistory);
       var m = {};
-      s.history.forEach(function(p){ m[p.t] = p.c; });
+      extended.forEach(function(p){ m[p.t] = p.c; });
       return m;
     });
-    var allTimestamps = included[0].history.map(function(p){ return p.t; });
-    included.forEach(function(s, i){
-      allTimestamps = allTimestamps.filter(function(t){ return tSets[i][t] !== undefined; });
-    });
+
+    // Use OMXS30's own timeline as the master calendar: it has the longest coverage,
+    // and every stock now has either a real or proxied price at each of its points.
+    var allTimestamps = omxHistory
+      .map(function(p){ return p.t; })
+      .filter(function(t){ return tSets.every(function(m){ return m[t] !== undefined; }); });
     if (!allTimestamps.length) return [];
 
     var baseT = allTimestamps[0];
