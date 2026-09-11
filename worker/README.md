@@ -38,9 +38,10 @@ under a different account/subdomain, update that constant to match.
 
 ## Updating allowed origins
 
-`ALLOWED_ORIGINS` in `worker.js` is a fixed allowlist (currently the GitHub Pages
-URL and localhost for testing). If you add a custom domain later, add it there
-and redeploy with `wrangler deploy`.
+`ALLOWED_ORIGINS` in `worker.js` is a fixed allowlist. It currently includes
+`bankaktier.se` and `www.bankaktier.se` alongside the GitHub Pages URL and
+localhost — **redeploy with `wrangler deploy` after editing this file** for the
+change to take effect; editing the file alone does nothing until it's deployed.
 
 ## Free tier limits
 

@@ -13,6 +13,8 @@
 
 const ALLOWED_ORIGINS = new Set([
   'https://andreasjilvero.github.io',
+  'https://bankaktier.se',
+  'https://www.bankaktier.se',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
 ]);
