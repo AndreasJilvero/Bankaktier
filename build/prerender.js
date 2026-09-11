@@ -35,7 +35,7 @@ function renderRow(s) {
   const nordnetUrl = `https://www.nordnet.se/marknaden/aktiekurser?query=${encodeURIComponent(s.name)}`;
   return `
           <tr data-id="${esc(s.id)}">
-            <td class="col-check"><input type="checkbox" checked aria-label="Inkludera ${esc(s.name)} i bankindexet"></td>
+            <td class="col-check"><input type="checkbox" checked aria-label="Visa ${esc(s.name)} i diagrammet"></td>
             <th class="col-name" scope="row">
               <div class="name-cell">
                 <span>${esc(s.name)}</span>
@@ -130,7 +130,6 @@ ${JSON.stringify({
   '@type': 'Dataset',
   name: 'Bankindex Sverige — svenska bankaktier',
   description,
-  temporalCoverage: `${new Date(Math.min(...data.omxs30.map((p) => p.t)) * 1000).toISOString().slice(0, 10)}/${new Date(data.generatedAt).toISOString().slice(0, 10)}`,
   creator: { '@type': 'Organization', name: 'Bankindex Sverige' },
   variableMeasured: ['Aktiekurs', 'P/E-tal', 'P/B-tal', 'Direktavkastning', 'Utdelningsandel', 'Börsvärde'],
   dateModified: data.generatedAt,

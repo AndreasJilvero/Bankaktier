@@ -1,5 +1,5 @@
 <title>Bankindex Sverige</title>
-<meta name="description" content="Alla svenska bankaktier i en tabell, med ett eget bankindex du bygger genom att kryssa i eller ur aktier, jämfört mot OMXS30." />
+<meta name="description" content="Alla svenska bankaktier i en tabell, med ett TradingView-diagram som jämför OMXS30 och OMX Stockholm Banks GI mot de aktier du väljer." />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -120,20 +120,13 @@
   .legend{display:flex; gap:18px; flex-wrap:wrap; font-size:0.82rem; color:var(--ink-soft);}
   .legend span{display:inline-flex; align-items:center; gap:7px;}
   .legend .swatch{width:16px;height:3px;border-radius:2px;display:inline-block;}
-  .range-toggle{display:flex; gap:4px; background:var(--line-soft); padding:3px; border-radius:8px;}
-  .range-toggle button{
-    border:none; background:transparent; padding:5px 11px; border-radius:6px; font-size:0.78rem;
-    font-family:'IBM Plex Mono', monospace; color:var(--ink-soft); cursor:pointer; font-weight:500;
+  .chart-hint{margin:0; font-size:0.78rem; color:var(--ink-soft);}
+  .chart-wrap{position:relative; width:100%; height:440px;}
+  .tv-container{width:100%; height:100%;}
+  .tv-fallback{
+    margin:0; padding:18px; font-size:0.85rem; color:var(--ink-soft); text-align:center;
+    display:flex; align-items:center; justify-content:center; height:100%;
   }
-  .range-toggle button.active{background:var(--paper-raised); color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,0.08);}
-  .chart-wrap{position:relative; width:100%;}
-  svg#chart{width:100%; height:auto; display:block; overflow:visible;}
-  .chart-stats{
-    display:flex; gap:22px; flex-wrap:wrap; margin-block-start:6px; padding-block-start:8px;
-    border-top:1px solid var(--line-soft); font-size:0.82rem;
-  }
-  .chart-stats .stat-label{color:var(--ink-soft); margin-right:5px;}
-  .chart-stats .stat-value{font-family:'IBM Plex Mono', monospace; font-weight:600;}
   .up{color:var(--gain);} .down{color:var(--loss);}
 
   /* ---- Table ---- */
@@ -239,25 +232,21 @@
   <section class="chart-panel">
     <div class="chart-head">
       <div class="legend" id="chartLegend">
-        <span><i class="swatch" style="background:var(--index-a)"></i>Bankindex (valda aktier, marknadsviktat)</span>
         <span><i class="swatch" style="background:var(--index-b)"></i>OMXS30</span>
+        <span><i class="swatch" style="background:var(--index-c)"></i>OMX Stockholm Banks GI</span>
       </div>
-      <div class="range-toggle" id="rangeToggle">
-        <button data-range="90">3 mån</button>
-        <button data-range="365">12 mån</button>
-        <button data-range="9999" class="active">5 år</button>
-      </div>
+      <p class="chart-hint">Kryssa i en aktie i tabellen för att lägga till den i diagrammet.</p>
     </div>
-    <div class="chart-wrap">
-      <svg id="chart" viewBox="0 0 1000 220" preserveAspectRatio="none" role="img" aria-label="Linjediagram över bankindex jämfört med OMXS30"></svg>
+    <div class="chart-wrap" id="tvChartWrap">
+      <div id="tvChartContainer" class="tv-container"></div>
+      <p class="tv-fallback" id="tvFallback" hidden>TradingView-diagrammet kräver att sidan körs på sin egen domän (inte i Claude-artefaktens sandbox), eftersom sandboxens innehållspolicy blockerar TradingViews inbäddningsskript.</p>
     </div>
-    <div class="chart-stats" id="chartStats"></div>
   </section>
 
   <section class="table-panel">
     <div class="table-panel-head">
       <h2>Aktier</h2>
-      <p class="hint">Sorterad efter börsvärde. Kryssa i checkboxen för att inkludera aktien i bankindexet ovan.</p>
+      <p class="hint">Sorterad efter börsvärde. Kryssa i checkboxen för att visa aktien i diagrammet ovan.</p>
     </div>
     <div class="table-scroll">
       <table>
@@ -282,7 +271,7 @@
         <tfoot>
           <tr>
             <td colspan="13">
-              <span class="index-count" id="indexCount">8 av 8</span> aktier ingår i bankindexet &middot; totalt börsvärde i indexet: <span class="index-count" id="indexMcap">—</span>
+              <span class="index-count" id="indexCount">8 av 8</span> aktier visas i diagrammet &middot; deras sammanlagda börsvärde: <span class="index-count" id="indexMcap">—</span>
             </td>
           </tr>
         </tfoot>
@@ -293,9 +282,8 @@
   <footer>
     <span>Nyckeltal (P/E, P/B, direktavkastning, utdelningsandel) och historik hämtade vid byggtillfället från Yahoo Finance. Kurs och dagens förändring uppdateras direkt i webbläsaren där det tillåts av sidans värdmiljö; annars visas byggtidens ögonblicksbild, tydligt tidsstämplad högst upp.</span>
     <span>P/E-prognos avser analytikerkonsensus för kommande räkenskapsår där sådan finns. Nyckeltal som saknar rimliga värden (t.ex. till följd av valutaavvikelser i källdatan) visas som "—" istället för ett missvisande tal.</span>
-    <span>Bolag som noterats kortare tid än den valda perioden (t.ex. en nyligen börsnoterad bank) saknar egna kurser för tiden före notering. För den perioden approximeras bolagets bidrag till bankindexet med OMXS30:s utveckling, så att indexet kan visas för hela perioden istället för att kortas av till det yngsta bolagets historik.</span>
-    <span>OMX Stockholm Banks GI (Nasdaqs officiella sektorindex för svenska bankaktier) visas som jämförelse när den kunnat hämtas vid byggtillfället; källan spärrar ibland automatiserade förfrågningar, så linjen kan saknas för enstaka byggen.</span>
-    <span>Endast för information, inte investeringsrådgivning. Källa: Yahoo Finance.</span>
+    <span>Diagrammet är ett inbäddat TradingView-diagram och visar OMXS30 och OMX Stockholm Banks GI (Nasdaqs officiella sektorindex för svenska bankaktier) som standard. Kryssade aktier läggs till som jämförelselinjer.</span>
+    <span>Endast för information, inte investeringsrådgivning. Källa: Yahoo Finance (tabellen) och TradingView (diagrammet).</span>
   </footer>
 
 </div>
@@ -341,20 +329,12 @@
     DATA.stocks.forEach(function(s){ state.included[s.id] = true; });
     document.getElementById('buildStamp').textContent = 'Byggd data: ' + new Date(DATA.generatedAt).toLocaleString('sv-SE', { dateStyle: 'medium', timeStyle: 'short' });
     renderTable();
-    renderChart();
+    initTradingViewChart();
     if (isArtifactSandbox()) {
       markDataAsOf();
     } else {
       fetchLivePrices();
     }
-    document.getElementById('rangeToggle').addEventListener('click', function(e){
-      var btn = e.target.closest('button[data-range]');
-      if (!btn) return;
-      Array.prototype.forEach.call(document.querySelectorAll('#rangeToggle button'), function(b){ b.classList.remove('active'); });
-      btn.classList.add('active');
-      state.range = parseInt(btn.getAttribute('data-range'), 10);
-      renderChart();
-    });
     document.querySelectorAll('thead th[data-sort]').forEach(function(th){
       th.addEventListener('click', function(){
         var key = th.getAttribute('data-sort');
@@ -422,11 +402,11 @@
       var checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
       checkbox.checked = !!state.included[s.id];
-      checkbox.setAttribute('aria-label', 'Inkludera ' + s.name + ' i bankindexet');
+      checkbox.setAttribute('aria-label', 'Visa ' + s.name + ' i diagrammet');
       checkbox.addEventListener('change', function(){
         state.included[s.id] = checkbox.checked;
         tr.classList.toggle('excluded', !checkbox.checked);
-        renderChart();
+        initTradingViewChart();
         updateFooter();
       });
       tdCheck.appendChild(checkbox);
@@ -539,270 +519,69 @@
     document.getElementById('indexMcap').textContent = fmtMcap(totalMcap);
   }
 
-  // ---- Index computation: market-cap-weighted, rebased to 100 at series start ----
-  // Some banks (e.g. a recent IPO) have less history than others. Rather than
-  // truncating the whole index to the shortest-lived stock, synthesize a stand-in
-  // price for the missing early period by walking OMXS30's relative day-to-day
-  // return backwards from the stock's actual first price. This is clearly a proxy,
-  // not real trading data, but it lets the index cover the full window instead of
-  // silently losing years of the other stocks' real performance.
-  function backfillWithIndexProxy(stockHistory, omxHistory) {
-    if (!stockHistory.length || !omxHistory.length) return stockHistory;
-    var firstStockT = stockHistory[0].t;
-    var omxBefore = omxHistory.filter(function(p){ return p.t < firstStockT; });
-    if (!omxBefore.length) return stockHistory;
-
-    var omxAtOrAfter = omxHistory.filter(function(p){ return p.t >= firstStockT; })[0];
-    if (!omxAtOrAfter) return stockHistory;
-
-    var anchorPrice = stockHistory[0].c;
-    var anchorOmx = omxAtOrAfter.c;
-    var proxied = omxBefore.map(function(p){
-      return { t: p.t, c: anchorPrice * (p.c / anchorOmx) };
+  // ---- TradingView chart ----
+  // The free embed widget has no JS API to add a comparison symbol after it has
+  // loaded (that requires TradingView's paid, license-gated Charting Library) — the
+  // only way to change which symbols are plotted is to destroy the widget's iframe
+  // and re-create it with a new config. So every checkbox toggle just re-embeds.
+  var tvScriptLoading = null;
+  function loadTradingViewScript(){
+    if (window.TradingView && window.TradingView.widget) return Promise.resolve();
+    if (tvScriptLoading) return tvScriptLoading;
+    tvScriptLoading = new Promise(function(resolve, reject){
+      var script = document.createElement('script');
+      script.src = 'https://s3.tradingview.com/tv.js';
+      script.onload = function(){ resolve(); };
+      script.onerror = function(){ reject(new Error('tv.js failed to load')); };
+      document.head.appendChild(script);
     });
-    return proxied.concat(stockHistory);
+    return tvScriptLoading;
   }
 
-  function computeBankIndexSeries(){
-    var included = DATA.stocks.filter(function(s){ return state.included[s.id]; });
-    if (!included.length) return [];
+  function initTradingViewChart(){
+    var container = document.getElementById('tvChartContainer');
+    var fallback = document.getElementById('tvFallback');
 
-    var omxHistory = DATA.omxs30;
-    var tSets = included.map(function(s){
-      var extended = backfillWithIndexProxy(s.history, omxHistory);
-      var m = {};
-      extended.forEach(function(p){ m[p.t] = p.c; });
-      return m;
-    });
+    if (isArtifactSandbox()) {
+      container.hidden = true;
+      fallback.hidden = false;
+      return;
+    }
 
-    // Use OMXS30's own timeline as the master calendar: it has the longest coverage,
-    // and every stock now has either a real or proxied price at each of its points.
-    var allTimestamps = omxHistory
-      .map(function(p){ return p.t; })
-      .filter(function(t){ return tSets.every(function(m){ return m[t] !== undefined; }); });
-    if (!allTimestamps.length) return [];
+    var isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var rootTheme = document.documentElement.getAttribute('data-theme');
+    if (rootTheme === 'dark') isDark = true;
+    if (rootTheme === 'light') isDark = false;
 
-    var baseT = allTimestamps[0];
-    var baseCloses = included.map(function(s, i){ return tSets[i][baseT]; });
-    // Weight by market cap at build time (approximation held constant across the series).
-    var weights = included.map(function(s){ return s.marketCap || 1; });
-    var totalWeight = weights.reduce(function(a, b){ return a + b; }, 0);
+    var compareSymbols = DATA.stocks
+      .filter(function(s){ return state.included[s.id] && s.tradingview; })
+      .map(function(s){ return { symbol: s.tradingview, position: 'SameScale' }; });
+    compareSymbols.unshift({ symbol: 'OMXSTO:SX3010GI', position: 'SameScale' });
 
-    return allTimestamps.map(function(t){
-      var indexVal = 0;
-      included.forEach(function(s, i){
-        var price = tSets[i][t];
-        var relRet = price / baseCloses[i];
-        indexVal += (weights[i] / totalWeight) * relRet;
+    loadTradingViewScript().then(function(){
+      container.innerHTML = '';
+      new window.TradingView.widget({
+        autosize: true,
+        symbol: 'OMXSTO:OMXS30',
+        interval: 'D',
+        timezone: 'Europe/Stockholm',
+        theme: isDark ? 'dark' : 'light',
+        style: '2',
+        locale: 'sv',
+        toolbar_bg: 'rgba(0,0,0,0)',
+        enable_publishing: false,
+        allow_symbol_change: false,
+        hide_top_toolbar: false,
+        hide_legend: false,
+        save_image: false,
+        container_id: 'tvChartContainer',
+        compareSymbols: compareSymbols,
       });
-      return { t: t, c: indexVal * 100 };
+    }).catch(function(){
+      container.hidden = true;
+      fallback.hidden = false;
+      fallback.textContent = 'Kunde inte ladda TradingView-diagrammet.';
     });
-  }
-
-  function rebaseSeries(points){
-    if (!points.length) return [];
-    var base = points[0].c;
-    return points.map(function(p){ return { t: p.t, c: (p.c / base) * 100 }; });
-  }
-
-  var legendBuilt = { withSector: null };
-  function updateChartLegend(showSector){
-    if (legendBuilt.withSector === showSector) return;
-    legendBuilt.withSector = showSector;
-    var legend = document.getElementById('chartLegend');
-    legend.innerHTML =
-      '<span><i class="swatch" style="background:var(--index-a)"></i>Bankindex (valda aktier, marknadsviktat)</span>' +
-      '<span><i class="swatch" style="background:var(--index-b)"></i>OMXS30</span>' +
-      (showSector ? '<span><i class="swatch" style="background:var(--index-c)"></i>OMX Stockholm Banks GI</span>' : '');
-  }
-
-  function filterByRange(points, days){
-    if (days >= 9999 || !points.length) return points;
-    var lastT = points[points.length - 1].t;
-    var cutoff = lastT - days * 86400;
-    return points.filter(function(p){ return p.t >= cutoff; });
-  }
-
-  function renderChart(){
-    var bankSeriesFull = computeBankIndexSeries();
-    var omxSeriesFull = rebaseSeries(DATA.omxs30);
-    var sectorSeriesFull = (DATA.bankSectorIndex && DATA.bankSectorIndex.length) ? rebaseSeries(DATA.bankSectorIndex) : [];
-
-    var bankSeries = filterByRange(bankSeriesFull, state.range);
-    var omxSeries = filterByRange(omxSeriesFull, state.range);
-    var sectorSeries = sectorSeriesFull.length ? filterByRange(sectorSeriesFull, state.range) : [];
-
-    // Re-rebase to 100 at the start of the selected window so both ranges are comparable.
-    bankSeries = rebaseSeries(bankSeries);
-    omxSeries = rebaseSeries(omxSeries);
-    sectorSeries = sectorSeries.length ? rebaseSeries(sectorSeries) : [];
-
-    updateChartLegend(sectorSeries.length > 0);
-
-    var svg = document.getElementById('chart');
-    var W = 1000, H = 220, padL = 46, padR = 14, padT = 14, padB = 26;
-    svg.innerHTML = '';
-
-    var css = getComputedStyle(document.documentElement);
-    var colorA = css.getPropertyValue('--index-a').trim();
-    var colorB = css.getPropertyValue('--index-b').trim();
-    var colorC = css.getPropertyValue('--index-c').trim();
-    var colorInk = css.getPropertyValue('--ink-soft').trim();
-    var colorLine = css.getPropertyValue('--line-soft').trim();
-
-    var allVals = bankSeries.concat(omxSeries).concat(sectorSeries).map(function(p){ return p.c; });
-    if (!allVals.length) return;
-    var minV = Math.min.apply(null, allVals);
-    var maxV = Math.max.apply(null, allVals);
-    var pad = (maxV - minV) * 0.08 || 1;
-    minV -= pad; maxV += pad;
-
-    var minT = Math.min(
-      bankSeries[0] ? bankSeries[0].t : Infinity,
-      omxSeries[0] ? omxSeries[0].t : Infinity,
-      sectorSeries[0] ? sectorSeries[0].t : Infinity
-    );
-    var maxT = Math.max(
-      bankSeries.length ? bankSeries[bankSeries.length-1].t : -Infinity,
-      omxSeries.length ? omxSeries[omxSeries.length-1].t : -Infinity,
-      sectorSeries.length ? sectorSeries[sectorSeries.length-1].t : -Infinity
-    );
-
-    function x(t){ return padL + ((t - minT) / (maxT - minT || 1)) * (W - padL - padR); }
-    function y(v){ return padT + (1 - (v - minV) / (maxV - minV || 1)) * (H - padT - padB); }
-
-    function pathFor(series){
-      return series.map(function(p, i){ return (i === 0 ? 'M' : 'L') + x(p.t).toFixed(2) + ',' + y(p.c).toFixed(2); }).join(' ');
-    }
-
-    var ns = 'http://www.w3.org/2000/svg';
-    function el(tag, attrs){
-      var e = document.createElementNS(ns, tag);
-      for (var k in attrs) e.setAttribute(k, attrs[k]);
-      return e;
-    }
-
-    // gridlines + y labels (100 baseline + min/max)
-    var gridVals = [100];
-    if (100 < minV || 100 > maxV) gridVals = [];
-    [minV + pad*0.3, maxV - pad*0.3].forEach(function(v){ gridVals.push(v); });
-    var uniqueGrid = [Math.round(minV+pad), 100, Math.round(maxV-pad)].filter(function(v,i,arr){ return arr.indexOf(v)===i; });
-    uniqueGrid.forEach(function(v){
-      if (v < minV || v > maxV) return;
-      var gy = y(v);
-      svg.appendChild(el('line', { x1: padL, x2: W - padR, y1: gy.toFixed(2), y2: gy.toFixed(2), stroke: colorLine, 'stroke-width': v === 100 ? 1.4 : 1, 'stroke-dasharray': v === 100 ? '4 3' : 'none' }));
-      var label = el('text', { x: padL - 8, y: (gy+4).toFixed(2), 'text-anchor': 'end', 'font-size': 11, 'font-family': 'IBM Plex Mono, monospace', fill: colorInk });
-      label.textContent = Math.round(v);
-      svg.appendChild(label);
-    });
-
-    // x-axis labels: pick evenly-spaced calendar ticks (roughly one per ~90px of
-    // width) rather than just first/middle/last, so a 5-year span actually shows
-    // several years of ticks instead of looking like a single short stretch.
-    var allSeriesForLabels = bankSeries.length ? bankSeries : omxSeries;
-    if (allSeriesForLabels.length > 1) {
-      var spanSeconds = maxT - minT;
-      var spanDays = spanSeconds / 86400;
-      var approxTickCount = Math.max(2, Math.min(8, Math.round((W - padL - padR) / 90)));
-      var monthly = spanDays <= 210; // ~7 months or less: label by day/week
-      var yearly = spanDays > 640; // ~21 months+: label by calendar year
-      var tickDates = [];
-
-      if (monthly) {
-        var stepDays = Math.max(1, Math.round(spanDays / approxTickCount));
-        for (var t = minT; t <= maxT; t += stepDays * 86400) tickDates.push(t);
-        if (tickDates[tickDates.length - 1] !== maxT) tickDates.push(maxT);
-      } else if (yearly) {
-        var startYear = new Date(minT * 1000).getUTCFullYear();
-        var endYear = new Date(maxT * 1000).getUTCFullYear();
-        var totalYears = endYear - startYear + 1;
-        var yearStep = Math.max(1, Math.ceil(totalYears / approxTickCount));
-        for (var yr = startYear; yr <= endYear; yr += yearStep) {
-          var jan1 = Date.UTC(yr, 0, 1) / 1000;
-          tickDates.push(Math.max(minT, Math.min(maxT, jan1)));
-        }
-        if (tickDates[tickDates.length - 1] < maxT - (365 * 86400) / 2) tickDates.push(maxT);
-      } else {
-        // medium range (~7-21 months): tick on the 1st of each month
-        var cursor = new Date(minT * 1000);
-        var startY = cursor.getUTCFullYear(), startM = cursor.getUTCMonth();
-        var endD = new Date(maxT * 1000);
-        var totalMonths = (endD.getUTCFullYear() - startY) * 12 + (endD.getUTCMonth() - startM) + 1;
-        var monthStep = Math.max(1, Math.ceil(totalMonths / approxTickCount));
-        for (var mi = 0; mi < totalMonths; mi += monthStep) {
-          var monthTs = Date.UTC(startY, startM + mi, 1) / 1000;
-          tickDates.push(Math.max(minT, Math.min(maxT, monthTs)));
-        }
-        if (tickDates[tickDates.length - 1] < maxT - (30 * 86400) / 2) tickDates.push(maxT);
-      }
-
-      // snap each tick to the nearest actual data point so the line/label align
-      var seriesTimes = allSeriesForLabels.map(function(p){ return p.t; });
-      function nearestT(target){
-        var best = seriesTimes[0], bestDiff = Math.abs(seriesTimes[0] - target);
-        for (var i = 1; i < seriesTimes.length; i++) {
-          var diff = Math.abs(seriesTimes[i] - target);
-          if (diff < bestDiff) { bestDiff = diff; best = seriesTimes[i]; }
-        }
-        return best;
-      }
-
-      var placedX = [];
-      tickDates.forEach(function(target, idx){
-        var snappedT = nearestT(target);
-        var px = x(snappedT);
-        // skip if it would overlap the previous label
-        if (placedX.length && px - placedX[placedX.length - 1] < 34) return;
-        placedX.push(px);
-        var d = new Date(snappedT * 1000);
-        var isFirst = idx === 0;
-        var isLast = px > W - padR - 34;
-        var label = el('text', {
-          x: px.toFixed(2), y: H - 8,
-          'text-anchor': isFirst ? 'start' : (isLast ? 'end' : 'middle'),
-          'font-size': 11, 'font-family': 'IBM Plex Mono, monospace', fill: colorInk
-        });
-        label.textContent = monthly
-          ? d.toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' })
-          : (yearly ? d.toLocaleDateString('sv-SE', { year: 'numeric' }) : d.toLocaleDateString('sv-SE', { month: 'short', year: '2-digit' }));
-        svg.appendChild(label);
-      });
-    }
-
-    if (sectorSeries.length > 1) {
-      svg.appendChild(el('path', { d: pathFor(sectorSeries), fill: 'none', stroke: colorC, 'stroke-width': 1.75, 'stroke-linejoin': 'round', 'stroke-dasharray': '5 4' }));
-    }
-    if (omxSeries.length > 1) {
-      svg.appendChild(el('path', { d: pathFor(omxSeries), fill: 'none', stroke: colorB, 'stroke-width': 2, 'stroke-linejoin': 'round' }));
-    }
-    if (bankSeries.length > 1) {
-      svg.appendChild(el('path', { d: pathFor(bankSeries), fill: 'none', stroke: colorA, 'stroke-width': 2.5, 'stroke-linejoin': 'round' }));
-    }
-
-    // endpoint dots
-    if (bankSeries.length) {
-      var lastB = bankSeries[bankSeries.length-1];
-      svg.appendChild(el('circle', { cx: x(lastB.t).toFixed(2), cy: y(lastB.c).toFixed(2), r: 4, fill: colorA }));
-    }
-    if (omxSeries.length) {
-      var lastO = omxSeries[omxSeries.length-1];
-      svg.appendChild(el('circle', { cx: x(lastO.t).toFixed(2), cy: y(lastO.c).toFixed(2), r: 4, fill: colorB }));
-    }
-    if (sectorSeries.length) {
-      var lastS = sectorSeries[sectorSeries.length-1];
-      svg.appendChild(el('circle', { cx: x(lastS.t).toFixed(2), cy: y(lastS.c).toFixed(2), r: 3.5, fill: colorC }));
-    }
-
-    // stats
-    var statsEl = document.getElementById('chartStats');
-    var bankReturn = bankSeries.length ? bankSeries[bankSeries.length-1].c - 100 : null;
-    var omxReturn = omxSeries.length ? omxSeries[omxSeries.length-1].c - 100 : null;
-    var sectorReturn = sectorSeries.length ? sectorSeries[sectorSeries.length-1].c - 100 : null;
-    statsEl.innerHTML =
-      '<span><span class="stat-label">Bankindex, perioden:</span><span class="stat-value ' + pctClass(bankReturn) + '">' + fmtPct(bankReturn, 1) + '</span></span>' +
-      '<span><span class="stat-label">OMXS30, perioden:</span><span class="stat-value ' + pctClass(omxReturn) + '">' + fmtPct(omxReturn, 1) + '</span></span>' +
-      '<span><span class="stat-label">Mellanskillnad:</span><span class="stat-value ' + pctClass(bankReturn - omxReturn) + '">' + fmtPct((bankReturn||0) - (omxReturn||0), 1) + '</span></span>' +
-      (sectorSeries.length ? '<span><span class="stat-label">OMX Stockholm Banks GI, perioden:</span><span class="stat-value ' + pctClass(sectorReturn) + '">' + fmtPct(sectorReturn, 1) + '</span></span>' : '');
   }
 
   // Claude's published-artifact sandbox enforces a Content Security Policy that only
@@ -870,7 +649,6 @@
         label.textContent = 'Liveuppdatering misslyckades — visar byggtidens kurser';
       }
       renderTable();
-      renderChart();
     });
   }
 
