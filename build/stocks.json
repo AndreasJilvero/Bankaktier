@@ -4,6 +4,7 @@
     "name": "SEB A",
     "fullName": "Skandinaviska Enskilda Banken A",
     "category": "storbank",
+    "country": "SE",
     "yahoo": "SEB-A.ST",
     "tradingview": "OMXSTO:SEB_A"
   },
@@ -12,6 +13,7 @@
     "name": "Swedbank A",
     "fullName": "Swedbank A",
     "category": "storbank",
+    "country": "SE",
     "yahoo": "SWED-A.ST",
     "tradingview": "OMXSTO:SWED_A"
   },
@@ -20,6 +22,7 @@
     "name": "Handelsbanken A",
     "fullName": "Svenska Handelsbanken A",
     "category": "storbank",
+    "country": "SE",
     "yahoo": "SHB-A.ST",
     "tradingview": "OMXSTO:SHB_A"
   },
@@ -28,14 +31,16 @@
     "name": "Nordea Bank",
     "fullName": "Nordea Bank Abp",
     "category": "storbank",
-    "yahoo": "NDA-SE.ST",
-    "tradingview": "OMXSTO:NDA_SE"
+    "country": "FI",
+    "yahoo": "NDA-FI.HE",
+    "tradingview": "HEX:NDA_FI"
   },
   {
     "id": "avanza",
     "name": "Avanza Bank",
     "fullName": "Avanza Bank Holding",
     "category": "nisch",
+    "country": "SE",
     "yahoo": "AZA.ST",
     "tradingview": "OMXSTO:AZA"
   },
@@ -44,6 +49,7 @@
     "name": "Nordnet",
     "fullName": "Nordnet AB",
     "category": "nisch",
+    "country": "SE",
     "yahoo": "SAVE.ST",
     "tradingview": "OMXSTO:SAVE"
   },
@@ -52,6 +58,7 @@
     "name": "Norion Bank",
     "fullName": "Norion Bank AB (f.d. Collector)",
     "category": "nisch",
+    "country": "SE",
     "yahoo": "NORION.ST",
     "tradingview": "OMXSTO:NORION"
   },
@@ -60,6 +67,7 @@
     "name": "Avarda Bank",
     "fullName": "Avarda Bank AB (f.d. TF Bank)",
     "category": "nisch",
+    "country": "SE",
     "yahoo": "AVARDA.ST",
     "tradingview": "OMXSTO:AVARDA"
   },
@@ -68,7 +76,152 @@
     "name": "Enity Holding",
     "fullName": "Enity Holding AB (f.d. Nordax Bank)",
     "category": "nisch",
+    "country": "SE",
     "yahoo": "ENITY.ST",
     "tradingview": "OMXSTO:ENITY"
+  },
+  {
+    "id": "morrow",
+    "name": "Morrow Bank",
+    "fullName": "Morrow Bank AB (f.d. Komplett Bank, omdomicilierad från Norge)",
+    "category": "nisch",
+    "country": "SE",
+    "yahoo": "MORROW.ST",
+    "tradingview": "OMXSTO:MORROW"
+  },
+  {
+    "id": "danske-bank",
+    "name": "Danske Bank",
+    "fullName": "Danske Bank A/S",
+    "category": "storbank",
+    "country": "DK",
+    "yahoo": "DANSKE.CO",
+    "tradingview": "CPSE:DANSKE"
+  },
+  {
+    "id": "jyske-bank",
+    "name": "Jyske Bank",
+    "fullName": "Jyske Bank A/S",
+    "category": "storbank",
+    "country": "DK",
+    "yahoo": "JYSK.CO",
+    "tradingview": "CPSE:JYSK"
+  },
+  {
+    "id": "sydbank",
+    "name": "AL Sydbank",
+    "fullName": "AL Sydbank A/S (f.d. Sydbank)",
+    "category": "storbank",
+    "country": "DK",
+    "yahoo": "ALSYDB.CO",
+    "tradingview": "CPSE:ALSYDB"
+  },
+  {
+    "id": "ringkjobing",
+    "name": "Ringkjøbing Landbobank",
+    "fullName": "Ringkjøbing Landbobank A/S",
+    "category": "nisch",
+    "country": "DK",
+    "yahoo": "RILBA.CO",
+    "tradingview": "CPSE:RILBA"
+  },
+  {
+    "id": "aktia",
+    "name": "Aktia Bank",
+    "fullName": "Aktia Bank Oyj",
+    "category": "nisch",
+    "country": "FI",
+    "yahoo": "AKTIA.HE",
+    "tradingview": "HEX:AKTIA"
+  },
+  {
+    "id": "alandsbanken",
+    "name": "Ålandsbanken",
+    "fullName": "Ålandsbanken Abp (Bank of Åland)",
+    "category": "nisch",
+    "country": "FI",
+    "yahoo": "ALBAV.HE",
+    "tradingview": "HEX:ALBAV"
+  },
+  {
+    "id": "dnb",
+    "name": "DNB Bank",
+    "fullName": "DNB Bank ASA",
+    "category": "storbank",
+    "country": "NO",
+    "yahoo": "DNB.OL",
+    "tradingview": "OSL:DNB"
+  },
+  {
+    "id": "sparebank1-sor-norge",
+    "name": "SpareBank 1 Sør-Norge",
+    "fullName": "SpareBank 1 Sør-Norge ASA (SR-Bank/Sørøst-Norge)",
+    "category": "storbank",
+    "country": "NO",
+    "yahoo": "SB1NO.OL",
+    "tradingview": "OSL:SB1NO"
+  },
+  {
+    "id": "sparebank1-smn",
+    "name": "SpareBank 1 SMN",
+    "fullName": "SpareBank 1 SMN",
+    "category": "storbank",
+    "country": "NO",
+    "yahoo": "MING.OL",
+    "tradingview": "OSL:MING"
+  },
+  {
+    "id": "sparebank1-nord-norge",
+    "name": "SpareBank 1 Nord-Norge",
+    "fullName": "SpareBank 1 Nord-Norge",
+    "category": "storbank",
+    "country": "NO",
+    "yahoo": "NONG.OL",
+    "tradingview": "OSL:NONG"
+  },
+  {
+    "id": "sparebank1-ostlandet",
+    "name": "SpareBank 1 Østlandet",
+    "fullName": "SpareBank 1 Østlandet",
+    "category": "storbank",
+    "country": "NO",
+    "yahoo": "SPOL.OL",
+    "tradingview": "OSL:SPOL"
+  },
+  {
+    "id": "sparebanken-norge",
+    "name": "Sparebanken Norge",
+    "fullName": "Sparebanken Norge (f.d. Sparebanken Vest/Sør)",
+    "category": "storbank",
+    "country": "NO",
+    "yahoo": "SBNOR.OL",
+    "tradingview": "OSL:SBNOR"
+  },
+  {
+    "id": "sparebanken-more",
+    "name": "Sparebanken Møre",
+    "fullName": "Sparebanken Møre",
+    "category": "nisch",
+    "country": "NO",
+    "yahoo": "MORG.OL",
+    "tradingview": "OSL:MORG"
+  },
+  {
+    "id": "sparebanken-ost",
+    "name": "Sparebanken Øst",
+    "fullName": "Sparebanken Øst",
+    "category": "nisch",
+    "country": "NO",
+    "yahoo": "SPOG.OL",
+    "tradingview": "OSL:SPOG"
+  },
+  {
+    "id": "instabank",
+    "name": "Instabank",
+    "fullName": "Instabank ASA",
+    "category": "nisch",
+    "country": "NO",
+    "yahoo": "INSTA.OL",
+    "tradingview": "OSL:INSTA"
   }
 ]

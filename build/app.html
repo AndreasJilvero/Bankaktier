@@ -1,5 +1,5 @@
-<title>Bankindex Sverige</title>
-<meta name="description" content="Alla svenska bankaktier i en tabell, med ett TradingView-diagram som jämför OMXS30 och OMX Stockholm Banks GI mot de aktier du väljer." />
+<title>Bankindex Norden</title>
+<meta name="description" content="Nordiska bankaktier (Sverige, Danmark, Finland, Norge) i en tabell, med ett TradingView-diagram som jämför OMXS30 och OMX Stockholm Banks GI mot de aktier du väljer." />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -108,6 +108,15 @@
   .live-dot .dot.loading{animation:pulse 1.1s ease-in-out infinite;}
   @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
 
+  /* ---- Index banner ---- */
+  .banner{display:flex; gap:12px; flex-wrap:wrap; margin-block-end:18px;}
+  .banner-tile{
+    flex:1 1 220px; display:flex; flex-direction:column; gap:4px; padding:12px 16px;
+    background:var(--paper-raised); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow);
+  }
+  .banner-label{font-size:0.72rem; letter-spacing:0.04em; text-transform:uppercase; color:var(--ink-soft);}
+  .banner-value{font-size:1.3rem; font-weight:600;}
+
   /* ---- Chart panel ---- */
   section.chart-panel{
     background:var(--paper-raised); border:1px solid var(--line); border-radius:10px;
@@ -123,10 +132,6 @@
   .chart-hint{margin:0; font-size:0.78rem; color:var(--ink-soft);}
   .chart-wrap{position:relative; width:100%; height:440px;}
   .tv-container{width:100%; height:100%;}
-  .tv-fallback{
-    margin:0; padding:18px; font-size:0.85rem; color:var(--ink-soft); text-align:center;
-    display:flex; align-items:center; justify-content:center; height:100%;
-  }
   .up{color:var(--gain);} .down{color:var(--loss);}
 
   /* ---- Table ---- */
@@ -146,6 +151,14 @@
     font-family:'IBM Plex Sans', sans-serif; color:var(--ink-soft); cursor:pointer; font-weight:500; white-space:nowrap;
   }
   .perf-toggle button.active{background:var(--paper-raised); color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,0.08);}
+  .country-filter{display:flex; gap:8px; flex-wrap:wrap; padding:0 22px 14px;}
+  .country-chip{
+    display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:20px;
+    border:1px solid var(--line); background:var(--paper-raised); font-size:0.8rem; font-weight:500;
+    color:var(--ink-soft); cursor:pointer; user-select:none;
+  }
+  .country-chip input{width:14px; height:14px; accent-color:var(--spruce); cursor:pointer; margin:0;}
+  .country-chip.active{border-color:var(--spruce); background:var(--spruce-wash); color:var(--spruce-deep);}
   .table-scroll{overflow-x:auto; border-top:1px solid var(--line-soft);}
   table{border-collapse:collapse; width:100%; min-width:960px; font-size:0.88rem;}
   thead th{
@@ -168,7 +181,6 @@
   tbody tr{border-bottom:1px solid var(--line-soft);}
   tbody tr:last-child{border-bottom:none;}
   tbody tr:hover td, tbody tr:hover th{background:var(--spruce-wash);}
-  tbody tr.excluded{opacity:0.45;}
   tbody td, tbody th{padding:10px 14px; text-align:right; vertical-align:middle;}
   tbody th.col-name{text-align:left; font-weight:600; font-family:'IBM Plex Sans';}
   .name-cell{display:flex; flex-direction:column; gap:2px;}
@@ -225,12 +237,23 @@
 <div class="wrap">
 
   <header class="masthead">
-    <h1>Svenska Bankaktier</h1>
+    <h1>Nordiska Bankaktier</h1>
     <div class="asof">
       <span class="live-dot" id="liveStatus"><span class="dot loading" id="liveDot"></span><span id="liveLabel">Laddar…</span></span>
       <span id="buildStamp">Byggd data: —</span>
     </div>
   </header>
+
+  <section class="banner" id="indexBanner">
+    <div class="banner-tile">
+      <span class="banner-label">OMXS30 idag</span>
+      <span class="banner-value num" id="bannerOmx">—</span>
+    </div>
+    <div class="banner-tile">
+      <span class="banner-label">OMX Stockholm Banks GI idag</span>
+      <span class="banner-value num" id="bannerBanks">—</span>
+    </div>
+  </section>
 
   <section class="chart-panel">
     <div class="chart-head">
@@ -242,7 +265,6 @@
     </div>
     <div class="chart-wrap" id="tvChartWrap">
       <div id="tvChartContainer" class="tv-container"></div>
-      <p class="tv-fallback" id="tvFallback" hidden>Kunde inte ladda TradingView-diagrammet.</p>
     </div>
   </section>
 
@@ -252,11 +274,12 @@
         <h2>Aktier</h2>
         <p class="hint">Sorterad efter börsvärde. Kryssa i checkboxen för att visa aktien i diagrammet ovan.</p>
       </div>
-      <div class="perf-toggle" id="perfToggle" role="group" aria-label="Visa avkastning">
+      <div class="perf-toggle" id="perfToggle" role="group" aria-label="Visa avkastning" title="Gäller 3 mån och 12 mån, inte Idag">
         <button data-mode="absolute" class="active">Egen avkastning</button>
         <button data-mode="relative">Relativt OMXS30</button>
       </div>
     </div>
+    <div class="country-filter" id="countryFilter" role="group" aria-label="Filtrera på land"></div>
     <div class="table-scroll">
       <table>
         <thead>
@@ -276,19 +299,13 @@
             <th data-sort="forwardPE" title="P/E-tal, prognos">P/E prog.</th>
             <th data-sort="priceToBook" title="Pris/eget kapital">P/B</th>
             <th data-sort="returnOnEquity" title="Räntabilitet på eget kapital">ROE</th>
-            <th data-sort="profitMargin" title="Vinstmarginal">Vinstmarg.</th>
+            <th data-sort="operatingMargin" title="Rörelseresultat / totala intäkter">Rörelsemarg.</th>
+            <th data-sort="netMargin" title="Nettoresultat / totala intäkter (efter skatt och engångsposter)">Nettomarg.</th>
             <th title="Analytikerrekommendationer: köp / behåll / sälj">Rek.</th>
             <th data-sort="upside" title="Analytikernas snittriktkurs vs. nuvarande kurs">Riktkurs</th>
           </tr>
         </thead>
         <tbody id="tbody"></tbody>
-        <tfoot>
-          <tr>
-            <td colspan="18">
-              <span class="index-count" id="indexCount">8 av 8</span> aktier visas i diagrammet &middot; deras sammanlagda börsvärde: <span class="index-count" id="indexMcap">—</span>
-            </td>
-          </tr>
-        </tfoot>
       </table>
     </div>
   </section>
@@ -297,7 +314,9 @@
     <span>Nyckeltal (P/E, P/B, direktavkastning, utdelningsandel) och historik hämtade vid byggtillfället från Yahoo Finance. Kurs och dagens förändring uppdateras direkt i webbläsaren där det tillåts av sidans värdmiljö; annars visas byggtidens ögonblicksbild, tydligt tidsstämplad högst upp.</span>
     <span>P/E-prognos avser analytikerkonsensus för kommande räkenskapsår där sådan finns. Nyckeltal som saknar rimliga värden (t.ex. till följd av valutaavvikelser i källdatan) visas som "—" istället för ett missvisande tal.</span>
     <span>Rek. visar andelen köp-, behåll- och säljrekommendationer bland de analytiker som bevakar aktien (siffrorna under stapeln). Bolag med få analytiker (t.ex. nyligen börsnoterade banker) kan ha stora svängningar i riktkurs och rekommendation från en enskild analys.</span>
+    <span>Rörelsemarg. är rörelseresultat delat på totala intäkter (räntenetto + provisioner m.m.), före skatt och engångsposter. Nettomarg. är resultat efter skatt delat på samma intäktsbas. Skillnaden mellan de två fångar effekten av skatt, kreditförluster och andra poster nedanför rörelseresultatet.</span>
     <span>Diagrammet är ett inbäddat TradingView-diagram och visar OMXS30 och OMX Stockholm Banks GI (Nasdaqs officiella sektorindex för svenska bankaktier) som standard. Kryssade aktier läggs till som jämförelselinjer.</span>
+    <span>Bolag från Sverige, Danmark, Finland och Norge visas i sina respektive lokala valutor (SEK, DKK, EUR, NOK) — jämför inte börsvärde eller kurs mellan länder utan att räkna om valutan. Bolag som är noterade på flera nordiska börser (t.ex. Nordea) visas bara en gång, på sin primära hemmalistning.</span>
     <span>Endast för information, inte investeringsrådgivning. Källa: Yahoo Finance (tabellen) och TradingView (diagrammet).</span>
   </footer>
 
@@ -312,10 +331,13 @@
     sortKey: 'marketCap',
     sortDir: 'desc',
     included: {},
-    perfMode: 'absolute'
+    perfMode: 'absolute',
+    countries: null
   };
 
   var CAT_LABEL = { storbank: 'Storbank', nisch: 'Nischbank' };
+  var COUNTRY_LABEL = { SE: 'Sverige', DK: 'Danmark', FI: 'Finland', NO: 'Norge' };
+  var COUNTRY_FLAG = { SE: '🇸🇪', DK: '🇩🇰', FI: '🇫🇮', NO: '🇳🇴' };
 
   function fmtNum(v, decimals){
     if (v === null || v === undefined || Number.isNaN(v)) return '—';
@@ -342,9 +364,13 @@
   function init(data){
     DATA = data;
     DATA.stocks.forEach(function(s){ state.included[s.id] = false; });
+    state.countries = {};
+    DATA.stocks.forEach(function(s){ state.countries[s.country] = true; });
     document.getElementById('buildStamp').textContent = 'Byggd data: ' + new Date(DATA.generatedAt).toLocaleString('sv-SE', { dateStyle: 'medium', timeStyle: 'short' });
+    renderCountryFilter();
     renderTable();
     initTradingViewChart();
+    fetchIndexBanner();
     if (isArtifactSandbox()) {
       markDataAsOf();
     } else {
@@ -374,9 +400,9 @@
   }
 
   function sortedStocks(){
-    var arr = DATA.stocks.slice();
+    var arr = DATA.stocks.filter(function(s){ return state.countries[s.country]; });
     var key = state.sortKey, dir = state.sortDir;
-    var perfKeys = { changeToday: 'changeToday', change3m: 'change3m', change12m: 'change12m' };
+    var perfKeys = { change3m: 'change3m', change12m: 'change12m' };
     arr.sort(function(a, b){
       var av = a[key], bv = b[key];
       if (key === 'name') {
@@ -392,6 +418,29 @@
       return bn - an;
     });
     return arr;
+  }
+
+  function renderCountryFilter(){
+    var countriesPresent = Object.keys(state.countries).sort(function(a, b){
+      return (COUNTRY_LABEL[a] || a).localeCompare(COUNTRY_LABEL[b] || b, 'sv');
+    });
+    var container = document.getElementById('countryFilter');
+    container.innerHTML = '';
+    countriesPresent.forEach(function(code){
+      var label = document.createElement('label');
+      label.className = 'country-chip' + (state.countries[code] ? ' active' : '');
+      var checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = state.countries[code];
+      checkbox.addEventListener('change', function(){
+        state.countries[code] = checkbox.checked;
+        label.classList.toggle('active', checkbox.checked);
+        renderTable();
+      });
+      label.appendChild(checkbox);
+      label.appendChild(document.createTextNode((COUNTRY_FLAG[code] || '') + ' ' + (COUNTRY_LABEL[code] || code)));
+      container.appendChild(label);
+    });
   }
 
   function updateSortHeaders(){
@@ -417,7 +466,6 @@
     list.forEach(function(s){
       var tr = document.createElement('tr');
       tr.dataset.id = s.id;
-      if (!state.included[s.id]) tr.classList.add('excluded');
 
       var tdCheck = document.createElement('td');
       tdCheck.className = 'col-check';
@@ -427,9 +475,7 @@
       checkbox.setAttribute('aria-label', 'Visa ' + s.name + ' i diagrammet');
       checkbox.addEventListener('change', function(){
         state.included[s.id] = checkbox.checked;
-        tr.classList.toggle('excluded', !checkbox.checked);
         initTradingViewChart();
-        updateFooter();
       });
       tdCheck.appendChild(checkbox);
       tr.appendChild(tdCheck);
@@ -440,7 +486,7 @@
       var nameCell = document.createElement('div');
       nameCell.className = 'name-cell';
       var nameEl = document.createElement('span');
-      nameEl.textContent = s.name;
+      nameEl.textContent = (COUNTRY_FLAG[s.country] || '') + ' ' + s.name;
       var fullEl = document.createElement('span');
       fullEl.className = 'full';
       fullEl.textContent = s.fullName;
@@ -466,7 +512,7 @@
 
       tr.appendChild(rangeCell(s));
 
-      tr.appendChild(pctCell(perfValue(s.changeToday, DATA.omxBenchmark.changeToday), 'today-' + s.id));
+      tr.appendChild(pctCell(s.changeToday, 'today-' + s.id));
       tr.appendChild(pctCell(perfValue(s.change3m, DATA.omxBenchmark.change3m)));
       tr.appendChild(pctCell(perfValue(s.change12m, DATA.omxBenchmark.change12m)));
 
@@ -510,10 +556,15 @@
       tdROE.textContent = s.returnOnEquity != null ? fmtNum(s.returnOnEquity, 1) + '%' : '—';
       tr.appendChild(tdROE);
 
-      var tdMargin = document.createElement('td');
-      tdMargin.className = 'num';
-      tdMargin.textContent = s.profitMargin != null ? fmtNum(s.profitMargin, 1) + '%' : '—';
-      tr.appendChild(tdMargin);
+      var tdOpMargin = document.createElement('td');
+      tdOpMargin.className = 'num';
+      tdOpMargin.textContent = s.operatingMargin != null ? fmtNum(s.operatingMargin, 1) + '%' : '—';
+      tr.appendChild(tdOpMargin);
+
+      var tdNetMargin = document.createElement('td');
+      tdNetMargin.className = 'num';
+      tdNetMargin.textContent = s.netMargin != null ? fmtNum(s.netMargin, 1) + '%' : '—';
+      tr.appendChild(tdNetMargin);
 
       tr.appendChild(recommendationCell(s));
 
@@ -533,7 +584,6 @@
 
       tbody.appendChild(tr);
     });
-    updateFooter();
   }
 
   function pctCell(v, id){
@@ -605,13 +655,6 @@
     return td;
   }
 
-  function updateFooter(){
-    var included = DATA.stocks.filter(function(s){ return state.included[s.id]; });
-    document.getElementById('indexCount').textContent = included.length + ' av ' + DATA.stocks.length;
-    var totalMcap = included.reduce(function(sum, s){ return sum + (s.marketCap || 0); }, 0);
-    document.getElementById('indexMcap').textContent = fmtMcap(totalMcap);
-  }
-
   // ---- TradingView chart ----
   // The free embed widget has no JS API to add a comparison symbol after it has
   // loaded (that requires TradingView's paid, license-gated Charting Library) — the
@@ -633,12 +676,9 @@
 
   function initTradingViewChart(){
     var container = document.getElementById('tvChartContainer');
-    var fallback = document.getElementById('tvFallback');
 
     if (isArtifactSandbox()) {
-      container.hidden = true;
-      fallback.hidden = false;
-      fallback.textContent = 'TradingView-diagrammet kräver att sidan körs på sin egen domän (inte i Claude-artefaktens sandbox), eftersom sandboxens innehållspolicy blockerar TradingViews inbäddningsskript.';
+      console.info('TradingView-diagrammet är avstängt i Claude-artefaktens sandbox (blockerar TradingViews inbäddningsskript). Fungerar när sidan körs på sin egen domän.');
       return;
     }
 
@@ -660,9 +700,6 @@
     });
     compareSymbols.unshift({ symbol: 'OMXSTO:SX3010GI', position: 'SameScale', lineColor: '#2B5C4B' });
 
-    container.hidden = false;
-    fallback.hidden = true;
-
     loadTradingViewScript().then(function(){
       container.innerHTML = '';
       new window.TradingView.widget({
@@ -682,10 +719,8 @@
         container_id: 'tvChartContainer',
         compareSymbols: compareSymbols,
       });
-    }).catch(function(){
-      container.hidden = true;
-      fallback.hidden = false;
-      fallback.textContent = 'Kunde inte ladda TradingView-diagrammet.';
+    }).catch(function(e){
+      console.error('Kunde inte ladda TradingView-diagrammet.', e);
     });
   }
 
@@ -707,6 +742,40 @@
   }
 
   // ---- Live price fetch via CORS relay (r.jina.ai forwards Yahoo's chart endpoint with CORS headers) ----
+  function fetchYahooQuote(symbol){
+    var url = 'https://r.jina.ai/https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(symbol) + '?range=1d&interval=1m';
+    return fetch(url, { cache: 'no-store' })
+      .then(function(r){ return r.text(); })
+      .then(function(txt){
+        var idx = txt.indexOf('{');
+        if (idx === -1) throw new Error('no json');
+        var json = JSON.parse(txt.slice(idx));
+        var meta = json.chart && json.chart.result && json.chart.result[0] && json.chart.result[0].meta;
+        if (!meta) throw new Error('no meta');
+        return meta;
+      });
+  }
+
+  // OMXS30 (^OMX) has full working history via Yahoo; OMX Stockholm Banks GI
+  // (^SX3010GI) has broken/misrouted historical data on Yahoo's feed (see the build
+  // script's comments) but its *current* price and today's change percent are valid
+  // — just not multi-day history — so it's still usable for this live-only banner.
+  function fetchIndexBanner(){
+    var omxEl = document.getElementById('bannerOmx');
+    var banksEl = document.getElementById('bannerBanks');
+    if (isArtifactSandbox()) return;
+
+    fetchYahooQuote('^OMX').then(function(meta){
+      omxEl.textContent = fmtPct(Math.round(meta.regularMarketChangePercent * 100) / 100, 2);
+      omxEl.className = 'banner-value num ' + pctClass(meta.regularMarketChangePercent);
+    }).catch(function(){});
+
+    fetchYahooQuote('^SX3010GI').then(function(meta){
+      banksEl.textContent = fmtPct(Math.round(meta.regularMarketChangePercent * 100) / 100, 2);
+      banksEl.className = 'banner-value num ' + pctClass(meta.regularMarketChangePercent);
+    }).catch(function(){});
+  }
+
   function fetchLivePrices(){
     var dot = document.getElementById('liveDot');
     var label = document.getElementById('liveLabel');
@@ -741,9 +810,8 @@
         if (priceEl) priceEl.textContent = fmtNum(res.price, 2) + ' ' + stock.currency;
         var todayEl = document.getElementById('today-' + stock.id);
         if (todayEl) {
-          var displayToday = perfValue(stock.changeToday, DATA.omxBenchmark.changeToday);
-          todayEl.textContent = fmtPct(displayToday, 2);
-          todayEl.className = 'num ' + pctClass(displayToday);
+          todayEl.textContent = fmtPct(stock.changeToday, 2);
+          todayEl.className = 'num ' + pctClass(stock.changeToday);
         }
       });
 
@@ -759,7 +827,7 @@
   }
 
   loadData().then(init).catch(function(e){
-    document.getElementById('tbody').innerHTML = '<tr><td colspan="18">Kunde inte ladda data: ' + e.message + '</td></tr>';
+    document.getElementById('tbody').innerHTML = '<tr><td colspan="19">Kunde inte ladda data: ' + e.message + '</td></tr>';
   });
 })();
 </script>

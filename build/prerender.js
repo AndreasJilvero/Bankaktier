@@ -7,6 +7,8 @@ const fs = require('fs');
 const path = require('path');
 
 const CAT_LABEL = { storbank: 'Storbank', nisch: 'Nischbank' };
+const COUNTRY_LABEL = { SE: 'Sverige', DK: 'Danmark', FI: 'Finland', NO: 'Norge' };
+const COUNTRY_FLAG = { SE: '🇸🇪', DK: '🇩🇰', FI: '🇫🇮', NO: '🇳🇴' };
 
 function esc(str) {
   return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -55,7 +57,7 @@ function renderRow(s) {
             <td class="col-check"><input type="checkbox" aria-label="Visa ${esc(s.name)} i diagrammet"></td>
             <th class="col-name" scope="row">
               <div class="name-cell">
-                <span>${esc(s.name)}</span>
+                <span>${COUNTRY_FLAG[s.country] || ''} ${esc(s.name)}</span>
                 <span class="full">${esc(s.fullName)}</span>
                 <span class="cat-pill ${esc(s.category)}">${esc(CAT_LABEL[s.category] || s.category)}</span>
               </div>
@@ -73,7 +75,8 @@ function renderRow(s) {
             <td class="num">${s.forwardPE != null ? fmtNum(s.forwardPE, 1) : '—'}</td>
             <td class="num">${s.priceToBook != null ? fmtNum(s.priceToBook, 2) : '—'}</td>
             <td class="num">${s.returnOnEquity != null ? fmtNum(s.returnOnEquity, 1) + '%' : '—'}</td>
-            <td class="num">${s.profitMargin != null ? fmtNum(s.profitMargin, 1) + '%' : '—'}</td>
+            <td class="num">${s.operatingMargin != null ? fmtNum(s.operatingMargin, 1) + '%' : '—'}</td>
+            <td class="num">${s.netMargin != null ? fmtNum(s.netMargin, 1) + '%' : '—'}</td>
             ${renderRecCell(s)}
             <td><div class="price-cell"><span class="num ${pctClass(s.upside)}">${fmtPct(s.upside, 1)}</span><span class="subtext">${s.analystCount != null ? s.analystCount + ' analytiker' : ''}</span></div></td>
           </tr>`;
@@ -86,18 +89,20 @@ function buildStandaloneSite(data, { siteUrl } = {}) {
   const stocksSorted = data.stocks.slice().sort((a, b) => (b.marketCap || 0) - (a.marketCap || 0));
   const rowsHtml = stocksSorted.map(renderRow).join('\n');
   const buildStamp = new Date(data.generatedAt).toLocaleString('sv-SE', { dateStyle: 'medium', timeStyle: 'short' });
+  const countriesPresent = [...new Set(data.stocks.map((s) => s.country))].sort((a, b) =>
+    (COUNTRY_LABEL[a] || a).localeCompare(COUNTRY_LABEL[b] || b, 'sv')
+  );
+  const countryChipsHtml = countriesPresent
+    .map((code) => `<label class="country-chip active"><input type="checkbox" checked>${COUNTRY_FLAG[code] || ''} ${esc(COUNTRY_LABEL[code] || code)}</label>`)
+    .join('');
 
   fragment = fragment.replace(
     '<tbody id="tbody"></tbody>',
     `<tbody id="tbody">${rowsHtml}\n        </tbody>`
   );
   fragment = fragment.replace(
-    '<span class="index-count" id="indexCount">8 av 8</span>',
-    `<span class="index-count" id="indexCount">0 av ${data.stocks.length}</span>`
-  );
-  fragment = fragment.replace(
-    '<span class="index-count" id="indexMcap">—</span>',
-    `<span class="index-count" id="indexMcap">${fmtMcap(0)}</span>`
+    '<div class="country-filter" id="countryFilter" role="group" aria-label="Filtrera på land"></div>',
+    `<div class="country-filter" id="countryFilter" role="group" aria-label="Filtrera på land">${countryChipsHtml}</div>`
   );
   fragment = fragment.replace(
     '<span id="buildStamp">Byggd data: —</span>',
@@ -109,7 +114,7 @@ function buildStandaloneSite(data, { siteUrl } = {}) {
   // Everything up to and including </style> belongs in <head>; the rest is the body.
   const titleMatch = fragment.match(/<title>([\s\S]*?)<\/title>/);
   const descMatch = fragment.match(/<meta name="description"[^>]*>/);
-  const title = titleMatch ? titleMatch[1] : 'Bankindex Sverige';
+  const title = titleMatch ? titleMatch[1] : 'Bankindex Norden';
   const description = descMatch
     ? (descMatch[0].match(/content="([^"]*)"/) || [])[1] || ''
     : '';
@@ -133,7 +138,7 @@ function buildStandaloneSite(data, { siteUrl } = {}) {
 <meta name="description" content="${esc(description)}">${canonical}
 <meta name="robots" content="index, follow">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="Bankindex Sverige">
+<meta property="og:site_name" content="Bankindex Norden">
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(description)}">
 ${siteUrl ? `<meta property="og:url" content="${esc(siteUrl)}">\n` : ''}<meta name="twitter:card" content="summary">
@@ -143,9 +148,9 @@ ${siteUrl ? `<meta property="og:url" content="${esc(siteUrl)}">\n` : ''}<meta na
 ${JSON.stringify({
   '@context': 'https://schema.org',
   '@type': 'Dataset',
-  name: 'Bankindex Sverige — svenska bankaktier',
+  name: 'Bankindex Norden — nordiska bankaktier',
   description,
-  creator: { '@type': 'Organization', name: 'Bankindex Sverige' },
+  creator: { '@type': 'Organization', name: 'Bankindex Norden' },
   variableMeasured: ['Aktiekurs', 'P/E-tal', 'P/B-tal', 'Direktavkastning', 'Utdelningsandel', 'Börsvärde'],
   dateModified: data.generatedAt,
 }, null, 2)}

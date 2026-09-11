@@ -158,6 +158,7 @@ async function main() {
       name: stock.name,
       fullName: stock.fullName,
       category: stock.category,
+      country: stock.country,
       yahoo: stock.yahoo,
       tradingview: stock.tradingview,
       currency: meta.currency,
@@ -190,7 +191,8 @@ async function main() {
       } : null,
       fiftyTwoWeekHigh: raw(sd.fiftyTwoWeekHigh),
       fiftyTwoWeekLow: raw(sd.fiftyTwoWeekLow),
-      profitMargin: raw(fd.profitMargins) != null ? Math.round(raw(fd.profitMargins) * 10000) / 100 : null,
+      netMargin: raw(fd.profitMargins) != null ? Math.round(raw(fd.profitMargins) * 10000) / 100 : null,
+      operatingMargin: raw(fd.operatingMargins) != null ? Math.round(raw(fd.operatingMargins) * 10000) / 100 : null,
       beta: sane(raw(ks.beta), -3, 5),
     });
 
