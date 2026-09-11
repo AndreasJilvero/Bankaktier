@@ -92,13 +92,7 @@
     display:flex; flex-wrap:wrap; gap:12px 32px; align-items:flex-end; justify-content:space-between;
     padding-block-end:14px; margin-block-end:16px; border-bottom:2px solid var(--ink);
   }
-  .masthead-title{max-width:640px;}
-  .eyebrow{
-    font-family:'IBM Plex Mono', monospace; font-size:0.72rem; letter-spacing:0.12em; text-transform:uppercase;
-    color:var(--spruce-deep); margin:0 0 6px;
-  }
-  .masthead-title h1{font-size:clamp(1.7rem, 1.2rem + 2vw, 2.4rem); font-weight:700; line-height:1.08;}
-  .masthead-title p{margin:8px 0 0; color:var(--ink-soft); font-size:0.95rem; max-width:52ch; line-height:1.5;}
+  header.masthead h1{font-size:clamp(1.4rem, 1.1rem + 1.2vw, 1.9rem); font-weight:700; line-height:1.1;}
   .asof{
     text-align:right; font-size:0.78rem; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;
     display:flex; flex-direction:column; gap:4px; align-items:flex-end;
@@ -232,11 +226,7 @@
 <div class="wrap">
 
   <header class="masthead">
-    <div class="masthead-title">
-      <p class="eyebrow">Svenska bankaktier &middot; byggd 2026</p>
-      <h1>Bankindex Sverige</h1>
-      <p>Storbanker och nischbanker på Stockholmsbörsen i en tabell. Kryssa ur eller i aktier för att se hur ditt eget bankindex presterar mot OMXS30.</p>
-    </div>
+    <h1>Svenska Bankaktier</h1>
     <div class="asof">
       <span class="live-dot" id="liveStatus"><span class="dot loading" id="liveDot"></span><span id="liveLabel">Laddar…</span></span>
       <span id="buildStamp">Byggd data: —</span>
