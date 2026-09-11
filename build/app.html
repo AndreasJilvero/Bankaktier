@@ -181,6 +181,22 @@
   .price-cell .p{font-family:'IBM Plex Mono', monospace; font-weight:600;}
   .price-cell .subtext{font-size:0.62rem; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
 
+  .range-cell{display:flex; flex-direction:column; align-items:flex-end; gap:3px; min-width:90px;}
+  .range-track{position:relative; width:100%; height:4px; border-radius:2px; background:var(--line);}
+  .range-track .range-dot{
+    position:absolute; top:50%; width:7px; height:7px; border-radius:50%; background:var(--spruce);
+    transform:translate(-50%,-50%); box-shadow:0 0 0 2px var(--paper-raised);
+  }
+  .range-cell .range-labels{display:flex; justify-content:space-between; width:100%; font-size:0.6rem; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
+
+  .rec-bar{display:flex; width:74px; height:9px; border-radius:5px; overflow:hidden; margin-left:auto; background:var(--line-soft);}
+  .rec-bar span{display:block; height:100%;}
+  .rec-bar .rec-buy{background:var(--gain);}
+  .rec-bar .rec-hold{background:var(--copper);}
+  .rec-bar .rec-sell{background:var(--loss);}
+  .rec-cell{display:flex; flex-direction:column; align-items:flex-end; gap:3px;}
+  .rec-cell .subtext{font-size:0.62rem; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
+
   .buy-cell{position:relative; text-align:center;}
   .buy-btn{
     font-family:'IBM Plex Sans'; font-weight:600; font-size:0.8rem; color:#fff; background:var(--copper);
@@ -240,7 +256,7 @@
     </div>
     <div class="chart-wrap" id="tvChartWrap">
       <div id="tvChartContainer" class="tv-container"></div>
-      <p class="tv-fallback" id="tvFallback" hidden>TradingView-diagrammet kräver att sidan körs på sin egen domän (inte i Claude-artefaktens sandbox), eftersom sandboxens innehållspolicy blockerar TradingViews inbäddningsskript.</p>
+      <p class="tv-fallback" id="tvFallback" hidden>Kunde inte ladda TradingView-diagrammet.</p>
     </div>
   </section>
 
@@ -256,9 +272,11 @@
             <th class="col-check"><span class="sr-only">Inkludera</span></th>
             <th class="col-name" data-sort="name">Bolag</th>
             <th data-sort="price">Kurs</th>
+            <th title="Nuvarande kurs position i 52-veckorsintervallet">52v-intervall</th>
             <th data-sort="changeToday">Idag</th>
             <th data-sort="change3m">3 mån</th>
             <th data-sort="change12m">12 mån</th>
+            <th data-sort="beta" title="Beta, volatilitet mot marknaden">Beta</th>
             <th data-sort="marketCap" title="Börsvärde">Börsv.</th>
             <th data-sort="dividendYield" title="Direktavkastning">Direktavk.</th>
             <th data-sort="payoutRatio" title="Utdelningsandel">Utd.andel</th>
@@ -266,6 +284,8 @@
             <th data-sort="forwardPE" title="P/E-tal, prognos">P/E prog.</th>
             <th data-sort="priceToBook" title="Pris/eget kapital">P/B</th>
             <th data-sort="returnOnEquity" title="Räntabilitet på eget kapital">ROE</th>
+            <th data-sort="profitMargin" title="Vinstmarginal">Vinstmarg.</th>
+            <th title="Analytikerrekommendationer: köp / behåll / sälj">Rek.</th>
             <th data-sort="upside" title="Analytikernas snittriktkurs vs. nuvarande kurs">Riktkurs</th>
             <th></th>
           </tr>
@@ -273,7 +293,7 @@
         <tbody id="tbody"></tbody>
         <tfoot>
           <tr>
-            <td colspan="15">
+            <td colspan="19">
               <span class="index-count" id="indexCount">8 av 8</span> aktier visas i diagrammet &middot; deras sammanlagda börsvärde: <span class="index-count" id="indexMcap">—</span>
             </td>
           </tr>
@@ -285,6 +305,7 @@
   <footer>
     <span>Nyckeltal (P/E, P/B, direktavkastning, utdelningsandel) och historik hämtade vid byggtillfället från Yahoo Finance. Kurs och dagens förändring uppdateras direkt i webbläsaren där det tillåts av sidans värdmiljö; annars visas byggtidens ögonblicksbild, tydligt tidsstämplad högst upp.</span>
     <span>P/E-prognos avser analytikerkonsensus för kommande räkenskapsår där sådan finns. Nyckeltal som saknar rimliga värden (t.ex. till följd av valutaavvikelser i källdatan) visas som "—" istället för ett missvisande tal.</span>
+    <span>Rek. visar andelen köp-, behåll- och säljrekommendationer bland de analytiker som bevakar aktien (siffrorna under stapeln). Bolag med få analytiker (t.ex. nyligen börsnoterade banker) kan ha stora svängningar i riktkurs och rekommendation från en enskild analys.</span>
     <span>Diagrammet är ett inbäddat TradingView-diagram och visar OMXS30 och OMX Stockholm Banks GI (Nasdaqs officiella sektorindex för svenska bankaktier) som standard. Kryssade aktier läggs till som jämförelselinjer.</span>
     <span>Endast för information, inte investeringsrådgivning. Källa: Yahoo Finance (tabellen) och TradingView (diagrammet).</span>
   </footer>
@@ -445,9 +466,16 @@
       tdPrice.appendChild(priceCell);
       tr.appendChild(tdPrice);
 
+      tr.appendChild(rangeCell(s));
+
       tr.appendChild(pctCell(s.changeToday, 'today-' + s.id));
       tr.appendChild(pctCell(s.change3m));
       tr.appendChild(pctCell(s.change12m));
+
+      var tdBeta = document.createElement('td');
+      tdBeta.className = 'num';
+      tdBeta.textContent = s.beta != null ? fmtNum(s.beta, 2) : '—';
+      tr.appendChild(tdBeta);
 
       var tdMcap = document.createElement('td');
       tdMcap.className = 'num';
@@ -483,6 +511,13 @@
       tdROE.className = 'num';
       tdROE.textContent = s.returnOnEquity != null ? fmtNum(s.returnOnEquity, 1) + '%' : '—';
       tr.appendChild(tdROE);
+
+      var tdMargin = document.createElement('td');
+      tdMargin.className = 'num';
+      tdMargin.textContent = s.profitMargin != null ? fmtNum(s.profitMargin, 1) + '%' : '—';
+      tr.appendChild(tdMargin);
+
+      tr.appendChild(recommendationCell(s));
 
       var tdUpside = document.createElement('td');
       var upsideCell = document.createElement('div');
@@ -534,6 +569,59 @@
     return td;
   }
 
+  function rangeCell(s){
+    var td = document.createElement('td');
+    var cell = document.createElement('div');
+    cell.className = 'range-cell';
+    if (s.fiftyTwoWeekLow != null && s.fiftyTwoWeekHigh != null && s.price != null && s.fiftyTwoWeekHigh > s.fiftyTwoWeekLow) {
+      var pct = Math.max(0, Math.min(100, ((s.price - s.fiftyTwoWeekLow) / (s.fiftyTwoWeekHigh - s.fiftyTwoWeekLow)) * 100));
+      var track = document.createElement('div');
+      track.className = 'range-track';
+      var dot = document.createElement('div');
+      dot.className = 'range-dot';
+      dot.style.left = pct.toFixed(1) + '%';
+      track.appendChild(dot);
+      var labels = document.createElement('div');
+      labels.className = 'range-labels';
+      labels.innerHTML = '<span>' + fmtNum(s.fiftyTwoWeekLow, 0) + '</span><span>' + fmtNum(s.fiftyTwoWeekHigh, 0) + '</span>';
+      cell.appendChild(track);
+      cell.appendChild(labels);
+    } else {
+      cell.textContent = '—';
+    }
+    td.appendChild(cell);
+    return td;
+  }
+
+  function recommendationCell(s){
+    var td = document.createElement('td');
+    var r = s.recommendations;
+    if (!r) { td.className = 'num'; td.textContent = '—'; return td; }
+    var buyN = r.strongBuy + r.buy;
+    var holdN = r.hold;
+    var sellN = r.sell + r.strongSell;
+    var total = buyN + holdN + sellN;
+    var cell = document.createElement('div');
+    cell.className = 'rec-cell';
+    if (total > 0) {
+      var bar = document.createElement('div');
+      bar.className = 'rec-bar';
+      bar.innerHTML =
+        '<span class="rec-buy" style="width:' + (buyN / total * 100).toFixed(1) + '%"></span>' +
+        '<span class="rec-hold" style="width:' + (holdN / total * 100).toFixed(1) + '%"></span>' +
+        '<span class="rec-sell" style="width:' + (sellN / total * 100).toFixed(1) + '%"></span>';
+      var label = document.createElement('span');
+      label.className = 'subtext';
+      label.textContent = buyN + ' / ' + holdN + ' / ' + sellN;
+      cell.appendChild(bar);
+      cell.appendChild(label);
+    } else {
+      cell.textContent = '—';
+    }
+    td.appendChild(cell);
+    return td;
+  }
+
   function updateFooter(){
     var included = DATA.stocks.filter(function(s){ return state.included[s.id]; });
     document.getElementById('indexCount').textContent = included.length + ' av ' + DATA.stocks.length;
@@ -567,6 +655,7 @@
     if (isArtifactSandbox()) {
       container.hidden = true;
       fallback.hidden = false;
+      fallback.textContent = 'TradingView-diagrammet kräver att sidan körs på sin egen domän (inte i Claude-artefaktens sandbox), eftersom sandboxens innehållspolicy blockerar TradingViews inbäddningsskript.';
       return;
     }
 
@@ -579,6 +668,9 @@
       .filter(function(s){ return state.included[s.id] && s.tradingview; })
       .map(function(s){ return { symbol: s.tradingview, position: 'SameScale' }; });
     compareSymbols.unshift({ symbol: 'OMXSTO:SX3010GI', position: 'SameScale' });
+
+    container.hidden = false;
+    fallback.hidden = true;
 
     loadTradingViewScript().then(function(){
       container.innerHTML = '';
@@ -675,7 +767,7 @@
   }
 
   loadData().then(init).catch(function(e){
-    document.getElementById('tbody').innerHTML = '<tr><td colspan="15">Kunde inte ladda data: ' + e.message + '</td></tr>';
+    document.getElementById('tbody').innerHTML = '<tr><td colspan="19">Kunde inte ladda data: ' + e.message + '</td></tr>';
   });
 })();
 </script>

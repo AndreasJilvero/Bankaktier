@@ -35,7 +35,7 @@ async function fetchChart(symbol, range) {
 }
 
 async function fetchSummary(symbol, cookieHeader, crumb) {
-  const modules = 'summaryDetail,defaultKeyStatistics,price,financialData';
+  const modules = 'summaryDetail,defaultKeyStatistics,price,financialData,recommendationTrend';
   const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules}&crumb=${encodeURIComponent(crumb)}`;
   const res = await fetch(url, { headers: { 'User-Agent': UA, Cookie: cookieHeader } });
   const json = await res.json();
@@ -144,6 +144,7 @@ async function main() {
     const sd = summary?.summaryDetail || {};
     const ks = summary?.defaultKeyStatistics || {};
     const fd = summary?.financialData || {};
+    const rt = summary?.recommendationTrend?.trend?.[0] || {};
 
     const trailingDivSum = (() => {
       if (!dividends.length) return null;
@@ -180,6 +181,17 @@ async function main() {
       upside: raw(fd.targetMeanPrice) != null && meta.regularMarketPrice
         ? Math.round(((raw(fd.targetMeanPrice) - meta.regularMarketPrice) / meta.regularMarketPrice) * 10000) / 100
         : null,
+      recommendations: (rt.buy != null || rt.hold != null || rt.sell != null) ? {
+        strongBuy: raw(rt.strongBuy) || 0,
+        buy: raw(rt.buy) || 0,
+        hold: raw(rt.hold) || 0,
+        sell: raw(rt.sell) || 0,
+        strongSell: raw(rt.strongSell) || 0,
+      } : null,
+      fiftyTwoWeekHigh: raw(sd.fiftyTwoWeekHigh),
+      fiftyTwoWeekLow: raw(sd.fiftyTwoWeekLow),
+      profitMargin: raw(fd.profitMargins) != null ? Math.round(raw(fd.profitMargins) * 10000) / 100 : null,
+      beta: sane(raw(ks.beta), -3, 5),
     });
 
     await new Promise((r) => setTimeout(r, 300));

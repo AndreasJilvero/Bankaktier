@@ -30,6 +30,25 @@ function pctClass(v) {
   return v > 0 ? 'up' : v < 0 ? 'down' : '';
 }
 
+function renderRangeCell(s) {
+  if (s.fiftyTwoWeekLow != null && s.fiftyTwoWeekHigh != null && s.price != null && s.fiftyTwoWeekHigh > s.fiftyTwoWeekLow) {
+    const pct = Math.max(0, Math.min(100, ((s.price - s.fiftyTwoWeekLow) / (s.fiftyTwoWeekHigh - s.fiftyTwoWeekLow)) * 100));
+    return `<td><div class="range-cell"><div class="range-track"><div class="range-dot" style="left:${pct.toFixed(1)}%"></div></div><div class="range-labels"><span>${fmtNum(s.fiftyTwoWeekLow, 0)}</span><span>${fmtNum(s.fiftyTwoWeekHigh, 0)}</span></div></div></td>`;
+  }
+  return `<td><div class="range-cell">—</div></td>`;
+}
+
+function renderRecCell(s) {
+  const r = s.recommendations;
+  if (!r) return `<td class="num">—</td>`;
+  const buyN = r.strongBuy + r.buy;
+  const holdN = r.hold;
+  const sellN = r.sell + r.strongSell;
+  const total = buyN + holdN + sellN;
+  if (total <= 0) return `<td><div class="rec-cell">—</div></td>`;
+  return `<td><div class="rec-cell"><div class="rec-bar"><span class="rec-buy" style="width:${(buyN / total * 100).toFixed(1)}%"></span><span class="rec-hold" style="width:${(holdN / total * 100).toFixed(1)}%"></span><span class="rec-sell" style="width:${(sellN / total * 100).toFixed(1)}%"></span></div><span class="subtext">${buyN} / ${holdN} / ${sellN}</span></div></td>`;
+}
+
 function renderRow(s) {
   const avanzaUrl = `https://www.avanza.se/aktier/handla.html/screener?free_text_search=${encodeURIComponent(s.name)}`;
   const nordnetUrl = `https://www.nordnet.se/marknaden/aktiekurser?query=${encodeURIComponent(s.name)}`;
@@ -44,9 +63,11 @@ function renderRow(s) {
               </div>
             </th>
             <td><div class="price-cell"><span class="p num" id="price-${esc(s.id)}">${fmtNum(s.price, 2)} ${esc(s.currency)}</span></div></td>
+            ${renderRangeCell(s)}
             <td class="num ${pctClass(s.changeToday)}" id="today-${esc(s.id)}">${fmtPct(s.changeToday, 2)}</td>
             <td class="num ${pctClass(s.change3m)}">${fmtPct(s.change3m, 2)}</td>
             <td class="num ${pctClass(s.change12m)}">${fmtPct(s.change12m, 2)}</td>
+            <td class="num">${s.beta != null ? fmtNum(s.beta, 2) : '—'}</td>
             <td class="num">${fmtMcap(s.marketCap)}</td>
             <td class="num">${s.dividendYield != null ? fmtNum(s.dividendYield, 2) + '%' : '—'}</td>
             <td class="num">${s.payoutRatio != null ? fmtNum(s.payoutRatio, 0) + '%' : '—'}</td>
@@ -54,6 +75,8 @@ function renderRow(s) {
             <td class="num">${s.forwardPE != null ? fmtNum(s.forwardPE, 1) : '—'}</td>
             <td class="num">${s.priceToBook != null ? fmtNum(s.priceToBook, 2) : '—'}</td>
             <td class="num">${s.returnOnEquity != null ? fmtNum(s.returnOnEquity, 1) + '%' : '—'}</td>
+            <td class="num">${s.profitMargin != null ? fmtNum(s.profitMargin, 1) + '%' : '—'}</td>
+            ${renderRecCell(s)}
             <td><div class="price-cell"><span class="num ${pctClass(s.upside)}">${fmtPct(s.upside, 1)}</span><span class="subtext">${s.analystCount != null ? s.analystCount + ' analytiker' : ''}</span></div></td>
             <td class="buy-cell">
               <button class="buy-btn" type="button">Köp</button>
