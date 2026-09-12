@@ -136,6 +136,7 @@ function buildStandaloneSite(data, { siteUrl } = {}) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(description)}">${canonical}
+<meta name="google-site-verification" content="c0G8MnWs9aCoNX-YVWPjB3260fDgDIwz9y0ez4eRLzI" />
 <meta name="robots" content="index, follow">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Bankindex Norden">
