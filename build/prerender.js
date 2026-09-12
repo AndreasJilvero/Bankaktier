@@ -129,11 +129,20 @@ function buildStandaloneSite(data, { siteUrl } = {}) {
 
   const canonical = siteUrl ? `\n<link rel="canonical" href="${esc(siteUrl)}">` : '';
 
+  const GA_MEASUREMENT_ID = 'G-Z2NJQDBKQ6';
+
   const head = `<!doctype html>
 <html lang="sv">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script async src="https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', '${GA_MEASUREMENT_ID}');
+</script>
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(description)}">${canonical}
 <meta name="google-site-verification" content="c0G8MnWs9aCoNX-YVWPjB3260fDgDIwz9y0ez4eRLzI" />
