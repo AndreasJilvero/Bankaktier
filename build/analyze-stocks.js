@@ -1,8 +1,9 @@
 // Nightly LLM analysis: for each bank stock, ask Claude (with web search) to write a
-// short analysis covering current valuation, forward estimates, and macro context for
-// its home country, then extract a Buy/Neutral/Sell verdict from that analysis via a
-// second, tool-free structured-output call. Writes build/analyses.json, consumed by
-// fetch-data.js (verdict badge in the table) and analysis-pages.js (the /analys/ pages).
+// short analysis covering current valuation vs. peers, forward estimates, and national
+// macro context, then return a Buy/Neutral/Sell verdict — all in a single call using
+// output_config.format to force the final response into strict JSON alongside the
+// web_search tool. Writes build/analyses.json, consumed by fetch-data.js (verdict badge
+// in the table) and analysis-pages.js (the /analys/ pages).
 //
 // Requires ANTHROPIC_API_KEY. Skipped entirely (with a clear log line, not a failure)
 // if the key isn't set, so local builds and PRs without the secret still work.
@@ -13,93 +14,96 @@ const Anthropic = require('@anthropic-ai/sdk');
 const COUNTRY_NAME = { SE: 'Sverige', DK: 'Danmark', FI: 'Finland', NO: 'Norge' };
 const MODEL = 'claude-opus-5';
 
-const VERDICT_SCHEMA = {
+const ANALYSIS_SCHEMA = {
   type: 'json_schema',
   schema: {
     type: 'object',
     properties: {
+      analysis: {
+        type: 'string',
+        description: 'The full analysis text in Swedish, 5-10 sentences, no markdown formatting.',
+      },
       verdict: { type: 'string', enum: ['Buy', 'Neutral', 'Sell'] },
     },
-    required: ['verdict'],
+    required: ['analysis', 'verdict'],
     additionalProperties: false,
   },
 };
 
-function buildResearchPrompt(stock) {
+function fmtMetric(v, suffix) {
+  return v == null ? 'okänt' : v + (suffix || '');
+}
+
+// Peers = other tracked banks, preferring same country (a Swedish investor comparing
+// SEB mainly cares how it stacks up against Swedbank/Handelsbanken, not a Danish
+// regional bank) but falling back to the full Nordic set when a country has too few
+// banks tracked to make a meaningful in-country comparison.
+function selectPeers(stock, allStocks) {
+  const others = allStocks.filter((s) => s.id !== stock.id);
+  const sameCountry = others.filter((s) => s.country === stock.country);
+  const pool = sameCountry.length >= 3 ? sameCountry : others;
+  return pool
+    .slice()
+    .sort((a, b) => (b.marketCap || 0) - (a.marketCap || 0))
+    .slice(0, 6);
+}
+
+function formatPeerLine(peer) {
+  return `${peer.name} (${COUNTRY_NAME[peer.country] || peer.country}): P/E ${fmtMetric(peer.trailingPE)}, P/B ${fmtMetric(peer.priceToBook)}, ROE ${fmtMetric(peer.returnOnEquity, '%')}`;
+}
+
+function buildPrompt(stock, peers) {
   const countryName = COUNTRY_NAME[stock.country] || stock.country;
   return `Du analyserar bankaktien ${stock.fullName} (${stock.name}), noterad i ${countryName} (${stock.yahoo}), för en investerare som överväger att lägga till den i sin portfölj.
 
 Nuvarande nyckeltal (hämtade vid byggtillfället, ${new Date().toISOString().slice(0, 10)}):
 - Kurs: ${stock.price} ${stock.currency} (idag ${stock.changeToday > 0 ? '+' : ''}${stock.changeToday}%, 3 mån ${stock.change3m}%, 12 mån ${stock.change12m}%)
 - Börsvärde: ${(stock.marketCap / 1e9).toFixed(1)} miljarder ${stock.currency}
-- P/E (historiskt): ${stock.trailingPE ?? 'okänt'}, P/E (prognos): ${stock.forwardPE ?? 'okänt'}
-- P/B: ${stock.priceToBook ?? 'okänt'}
-- ROE: ${stock.returnOnEquity ?? 'okänt'}%
-- Rörelsemarginal: ${stock.operatingMargin ?? 'okänt'}%, nettomarginal: ${stock.netMargin ?? 'okänt'}%
-- Direktavkastning: ${stock.dividendYield ?? 'okänt'}%, utdelningsandel: ${stock.payoutRatio ?? 'okänt'}%
+- P/E (historiskt): ${fmtMetric(stock.trailingPE)}, P/E (prognos): ${fmtMetric(stock.forwardPE)}
+- P/B: ${fmtMetric(stock.priceToBook)}
+- ROE: ${fmtMetric(stock.returnOnEquity, '%')}
+- Rörelsemarginal: ${fmtMetric(stock.operatingMargin, '%')}, nettomarginal: ${fmtMetric(stock.netMargin, '%')}
+- Direktavkastning: ${fmtMetric(stock.dividendYield, '%')}, utdelningsandel: ${fmtMetric(stock.payoutRatio, '%')}
 - Analytikernas snittriktkurs: ${stock.targetMeanPrice ? Math.round(stock.targetMeanPrice) + ' ' + stock.currency : 'okänt'} (${stock.upside != null ? (stock.upside > 0 ? '+' : '') + stock.upside.toFixed(1) + '%' : 'okänt'} mot nuvarande kurs, baserat på ${stock.analystCount ?? '?'} analytiker)
 - Rekommendationer: ${stock.recommendations ? `${stock.recommendations.strongBuy + stock.recommendations.buy} köp, ${stock.recommendations.hold} behåll, ${stock.recommendations.sell + stock.recommendations.strongSell} sälj` : 'okänt'}
-- Beta: ${stock.beta ?? 'okänt'}
+- Beta: ${fmtMetric(stock.beta)}
+
+Jämförbara nordiska bankaktier (samma källa, samma tidpunkt):
+${peers.map((p) => `- ${formatPeerLine(p)}`).join('\n')}
 
 Använd webbsökning för att ta reda på det senaste kring bolaget (senaste kvartalsrapport, analytikerkommentarer) och makroläget i ${countryName} (styrränta, inflation, bostadsmarknad, tillväxtutsikter) i den mån det påverkar banksektorn där.
 
 Skriv en analys på svenska, 5-10 meningar, som täcker:
-1. Nuvarande värdering (är den hög/låg/rimlig jämfört med historik och sektorn givet lönsamheten)
+1. Nuvarande värdering jämfört med de nordiska konkurrenterna ovan — är aktien billigare eller dyrare än sektorn givet dess lönsamhet (ROE, marginaler), inte bara i absoluta tal
 2. Prognoser och förväntad utveckling (analytikerkonsensus, vinsttillväxt)
 3. Makroläget i ${countryName} på nationell nivå och hur det påverkar bankens affär
 
-Avsluta analysen med en tydlig sammanfattande mening om huvudargumentet för eller emot aktien. Skriv rakt och konkret, undvik disclaimers och floskler.`;
+Avsluta analysen med en tydlig sammanfattande mening om huvudargumentet för eller emot aktien. Skriv rakt och konkret, undvik disclaimers och floskler. Sätt sedan ett samlat betyg (Buy/Neutral/Sell) som sammanfattar helhetsbilden.`;
 }
 
-async function analyzeStock(client, stock) {
-  const researchResponse = await client.messages.create({
+async function analyzeStock(client, stock, peers) {
+  const params = {
     model: MODEL,
     max_tokens: 2000,
     tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 4 }],
-    messages: [{ role: 'user', content: buildResearchPrompt(stock) }],
-  });
+    output_config: { format: ANALYSIS_SCHEMA },
+    messages: [{ role: 'user', content: buildPrompt(stock, peers) }],
+  };
 
-  let finalResponse = researchResponse;
-  let messages = [{ role: 'user', content: buildResearchPrompt(stock) }];
-  // Resume if a long tool-use turn paused before finishing.
-  while (finalResponse.stop_reason === 'pause_turn') {
-    messages = [...messages, { role: 'assistant', content: finalResponse.content }];
-    finalResponse = await client.messages.create({
-      model: MODEL,
-      max_tokens: 2000,
-      tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 4 }],
-      messages,
-    });
+  let response = await client.messages.parse(params);
+  let messages = params.messages;
+  // Resume if a long tool-use turn paused before the model produced its final answer.
+  while (response.stop_reason === 'pause_turn') {
+    messages = [...messages, { role: 'assistant', content: response.content }];
+    response = await client.messages.parse({ ...params, messages });
   }
 
-  const analysisText = finalResponse.content
-    .filter((b) => b.type === 'text')
-    .map((b) => b.text)
-    .join('\n\n')
-    .trim();
-
-  if (!analysisText) {
-    throw new Error(`empty analysis text for ${stock.id} (stop_reason: ${finalResponse.stop_reason})`);
+  const parsed = response.parsed_output;
+  if (!parsed || !parsed.analysis || !['Buy', 'Neutral', 'Sell'].includes(parsed.verdict)) {
+    throw new Error(`invalid structured output for ${stock.id} (stop_reason: ${response.stop_reason}): ${JSON.stringify(parsed)}`);
   }
 
-  const verdictResponse = await client.messages.parse({
-    model: MODEL,
-    max_tokens: 200,
-    messages: [
-      {
-        role: 'user',
-        content: `Läs den här aktieanalysen och avgör om helhetsbilden är Buy, Neutral eller Sell:\n\n${analysisText}`,
-      },
-    ],
-    output_config: { format: VERDICT_SCHEMA },
-  });
-
-  const verdict = verdictResponse.parsed_output?.verdict;
-  if (!verdict || !['Buy', 'Neutral', 'Sell'].includes(verdict)) {
-    throw new Error(`invalid verdict for ${stock.id}: ${JSON.stringify(verdictResponse.parsed_output)}`);
-  }
-
-  return { verdict, text: analysisText };
+  return { verdict: parsed.verdict, text: parsed.analysis.trim() };
 }
 
 async function main() {
@@ -125,7 +129,8 @@ async function main() {
   for (const stock of data.stocks) {
     process.stdout.write(`Analyzing ${stock.name}... `);
     try {
-      const result = await analyzeStock(client, stock);
+      const peers = selectPeers(stock, data.stocks);
+      const result = await analyzeStock(client, stock, peers);
       analyses[stock.id] = {
         name: stock.name,
         country: stock.country,
