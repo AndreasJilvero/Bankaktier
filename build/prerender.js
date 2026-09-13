@@ -157,12 +157,12 @@ ${siteUrl ? `<meta property="og:url" content="${esc(siteUrl)}">\n` : ''}<meta na
 <script type="application/ld+json">
 ${JSON.stringify({
   '@context': 'https://schema.org',
-  '@type': 'Dataset',
-  name: 'Bankindex Norden — nordiska bankaktier',
+  '@type': 'WebApplication',
+  name: 'Bankindex Norden',
   description,
-  creator: { '@type': 'Organization', name: 'Bankindex Norden' },
-  variableMeasured: ['Aktiekurs', 'P/E-tal', 'P/B-tal', 'Direktavkastning', 'Utdelningsandel', 'Börsvärde'],
-  dateModified: data.generatedAt,
+  applicationCategory: 'FinanceApplication',
+  operatingSystem: 'Any (web browser)',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'SEK' },
 }, null, 2)}
 </script>
 ${headExtras}
