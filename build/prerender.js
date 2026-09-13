@@ -9,6 +9,8 @@ const path = require('path');
 const CAT_LABEL = { storbank: 'Storbank', nisch: 'Nischbank' };
 const COUNTRY_LABEL = { SE: 'Sverige', DK: 'Danmark', FI: 'Finland', NO: 'Norge' };
 const COUNTRY_FLAG = { SE: '🇸🇪', DK: '🇩🇰', FI: '🇫🇮', NO: '🇳🇴' };
+const VERDICT_LABEL = { Buy: 'Köp', Neutral: 'Neutral', Sell: 'Sälj' };
+const VERDICT_CLASS = { Buy: 'verdict-buy', Neutral: 'verdict-neutral', Sell: 'verdict-sell' };
 
 function esc(str) {
   return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -62,6 +64,7 @@ function renderRow(s) {
                 <span class="cat-pill ${esc(s.category)}">${esc(CAT_LABEL[s.category] || s.category)}</span>
               </div>
             </th>
+            <td>${s.verdict && VERDICT_LABEL[s.verdict] ? `<a class="verdict-badge ${VERDICT_CLASS[s.verdict]}" href="${esc(s.analysisUrl || '#')}">${esc(VERDICT_LABEL[s.verdict])}</a>` : '<span class="verdict-none">—</span>'}</td>
             <td><div class="price-cell"><span class="p num" id="price-${esc(s.id)}">${fmtNum(s.price, 2)} ${esc(s.currency)}</span></div></td>
             ${renderRangeCell(s)}
             <td class="num ${pctClass(s.changeToday)}" id="today-${esc(s.id)}">${fmtPct(s.changeToday, 2)}</td>
@@ -114,7 +117,7 @@ function buildStandaloneSite(data, { siteUrl } = {}) {
   // Everything up to and including </style> belongs in <head>; the rest is the body.
   const titleMatch = fragment.match(/<title>([\s\S]*?)<\/title>/);
   const descMatch = fragment.match(/<meta name="description"[^>]*>/);
-  const title = titleMatch ? titleMatch[1] : 'Bankindex Norden';
+  const title = titleMatch ? titleMatch[1] : 'Bankaktier Norden';
   const description = descMatch
     ? (descMatch[0].match(/content="([^"]*)"/) || [])[1] || ''
     : '';
@@ -148,7 +151,7 @@ function buildStandaloneSite(data, { siteUrl } = {}) {
 <meta name="google-site-verification" content="c0G8MnWs9aCoNX-YVWPjB3260fDgDIwz9y0ez4eRLzI" />
 <meta name="robots" content="index, follow">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="Bankindex Norden">
+<meta property="og:site_name" content="Bankaktier Norden">
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(description)}">
 ${siteUrl ? `<meta property="og:url" content="${esc(siteUrl)}">\n` : ''}<meta name="twitter:card" content="summary">
@@ -158,7 +161,7 @@ ${siteUrl ? `<meta property="og:url" content="${esc(siteUrl)}">\n` : ''}<meta na
 ${JSON.stringify({
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
-  name: 'Bankindex Norden',
+  name: 'Bankaktier Norden',
   description,
   applicationCategory: 'FinanceApplication',
   operatingSystem: 'Any (web browser)',

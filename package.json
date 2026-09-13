@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "node build/fetch-data.js",
+    "build": "node build/build-site.js",
     "serve": "python -m http.server 5173 --directory build/site",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -15,6 +15,7 @@
     "node": ">=22"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.125.0",
     "better-sqlite3": "^13.0.3"
   }
 }

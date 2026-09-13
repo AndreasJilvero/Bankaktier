@@ -1,4 +1,4 @@
-<title>Bankindex Norden</title>
+<title>Bankaktier Norden</title>
 <meta name="description" content="Nordiska bankaktier (Sverige, Danmark, Finland, Norge) i en tabell, med ett TradingView-diagram som jämför OMXS30 och OMX Stockholm Banks GI mot de aktier du väljer." />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,6 +21,8 @@
     --gain-wash:#E4F2E9;
     --loss:#B23B3B;
     --loss-wash:#F7E7E5;
+    --neutral:#8A6B1F;
+    --neutral-wash:#F2EBD8;
     --index-a:#2B5C4B;
     --index-b:#9A6A2B;
     --index-c:#5B7A99;
@@ -45,6 +47,8 @@
       --gain-wash:#1B2A20;
       --loss:#E27A72;
       --loss-wash:#2E1E1C;
+      --neutral:#D9B45C;
+      --neutral-wash:#2E2818;
       --index-a:#5FA98A;
       --index-b:#D9A054;
       --index-c:#8CAFCB;
@@ -69,6 +73,8 @@
     --gain-wash:#1B2A20;
     --loss:#E27A72;
     --loss-wash:#2E1E1C;
+    --neutral:#D9B45C;
+    --neutral-wash:#2E2818;
     --index-a:#5FA98A;
     --index-b:#D9A054;
     --index-c:#8CAFCB;
@@ -215,6 +221,16 @@
   .rec-cell{display:flex; flex-direction:column; align-items:flex-end; gap:3px;}
   .rec-cell .subtext{font-size:0.62rem; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
 
+  .verdict-badge{
+    display:inline-flex; align-items:center; padding:4px 11px; border-radius:20px;
+    font-size:0.76rem; font-weight:600; text-decoration:none; white-space:nowrap;
+  }
+  .verdict-badge.verdict-buy{background:var(--gain-wash); color:var(--gain);}
+  .verdict-badge.verdict-neutral{background:var(--neutral-wash); color:var(--neutral);}
+  .verdict-badge.verdict-sell{background:var(--loss-wash); color:var(--loss);}
+  .verdict-badge:hover{text-decoration:underline;}
+  .verdict-none{color:var(--ink-soft); font-size:0.8rem;}
+
   tfoot td{padding:13px 14px; font-size:0.8rem; color:var(--ink-soft); border-top:2px solid var(--ink);}
   tfoot .index-count{font-family:'IBM Plex Mono', monospace; font-weight:600; color:var(--spruce-deep);}
 
@@ -237,7 +253,7 @@
 <div class="wrap">
 
   <header class="masthead">
-    <h1>Nordiska Bankaktier</h1>
+    <h1>Bankaktier Norden</h1>
     <div class="asof">
       <span class="live-dot" id="liveStatus"><span class="dot loading" id="liveDot"></span><span id="liveLabel">Laddar…</span></span>
       <span id="buildStamp">Byggd data: —</span>
@@ -286,6 +302,7 @@
           <tr>
             <th class="col-check"><span class="sr-only">Inkludera</span></th>
             <th class="col-name" data-sort="name">Bolag</th>
+            <th data-sort="verdict" title="AI-genererad analys, uppdateras varje natt">Analys</th>
             <th data-sort="price">Kurs</th>
             <th title="Nuvarande kurs position i 52-veckorsintervallet">52v-intervall</th>
             <th data-sort="changeToday">Idag</th>
@@ -338,6 +355,8 @@
   var CAT_LABEL = { storbank: 'Storbank', nisch: 'Nischbank' };
   var COUNTRY_LABEL = { SE: 'Sverige', DK: 'Danmark', FI: 'Finland', NO: 'Norge' };
   var COUNTRY_FLAG = { SE: '🇸🇪', DK: '🇩🇰', FI: '🇫🇮', NO: '🇳🇴' };
+  var VERDICT_LABEL = { Buy: 'Köp', Neutral: 'Neutral', Sell: 'Sälj' };
+  var VERDICT_CLASS = { Buy: 'verdict-buy', Neutral: 'verdict-neutral', Sell: 'verdict-sell' };
 
   function fmtNum(v, decimals){
     if (v === null || v === undefined || Number.isNaN(v)) return '—';
@@ -399,6 +418,7 @@
     });
   }
 
+  var VERDICT_RANK = { Buy: 2, Neutral: 1, Sell: 0 };
   function sortedStocks(){
     var arr = DATA.stocks.filter(function(s){ return state.countries[s.country]; });
     var key = state.sortKey, dir = state.sortDir;
@@ -407,6 +427,10 @@
       var av = a[key], bv = b[key];
       if (key === 'name') {
         return dir === 'asc' ? a.name.localeCompare(b.name, 'sv') : b.name.localeCompare(a.name, 'sv');
+      }
+      if (key === 'verdict') {
+        av = VERDICT_RANK[a.verdict];
+        bv = VERDICT_RANK[b.verdict];
       }
       if (perfKeys[key]) {
         av = perfValue(av, DATA.omxBenchmark[perfKeys[key]]);
@@ -498,6 +522,21 @@
       nameCell.appendChild(pill);
       thName.appendChild(nameCell);
       tr.appendChild(thName);
+
+      var tdVerdict = document.createElement('td');
+      if (s.verdict && VERDICT_LABEL[s.verdict]) {
+        var verdictLink = document.createElement('a');
+        verdictLink.className = 'verdict-badge ' + VERDICT_CLASS[s.verdict];
+        verdictLink.href = s.analysisUrl || '#';
+        verdictLink.textContent = VERDICT_LABEL[s.verdict];
+        tdVerdict.appendChild(verdictLink);
+      } else {
+        var verdictNone = document.createElement('span');
+        verdictNone.className = 'verdict-none';
+        verdictNone.textContent = '—';
+        tdVerdict.appendChild(verdictNone);
+      }
+      tr.appendChild(tdVerdict);
 
       var tdPrice = document.createElement('td');
       var priceCell = document.createElement('div');
@@ -837,7 +876,7 @@
   }
 
   loadData().then(init).catch(function(e){
-    document.getElementById('tbody').innerHTML = '<tr><td colspan="19">Kunde inte ladda data: ' + e.message + '</td></tr>';
+    document.getElementById('tbody').innerHTML = '<tr><td colspan="20">Kunde inte ladda data: ' + e.message + '</td></tr>';
   });
 })();
 </script>

@@ -222,28 +222,6 @@ async function main() {
   fs.writeFileSync(path.join(__dirname, 'data.json'), JSON.stringify(output));
   console.log(`Done. Wrote build/data.json (${stocksOut.length} stocks). History DB: ${historyDb.DB_PATH}`);
 
-  const { buildStandaloneSite } = require('./prerender');
-  const siteDir = path.join(__dirname, 'site');
-  fs.mkdirSync(siteDir, { recursive: true });
-  const siteUrl = process.env.SITE_URL || '';
-  const html = buildStandaloneSite(output, { siteUrl });
-  fs.writeFileSync(path.join(siteDir, 'index.html'), html);
-  fs.copyFileSync(path.join(__dirname, 'data.json'), path.join(siteDir, 'data.json'));
-
-  const origin = siteUrl ? siteUrl.replace(/\/+$/, '') : '';
-  fs.writeFileSync(
-    path.join(siteDir, 'robots.txt'),
-    `User-agent: *\nAllow: /\n${origin ? `\nSitemap: ${origin}/sitemap.xml\n` : ''}`
-  );
-  if (origin) {
-    fs.writeFileSync(
-      path.join(siteDir, 'sitemap.xml'),
-      `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url>\n    <loc>${origin}/</loc>\n    <lastmod>${output.generatedAt.slice(0, 10)}</lastmod>\n    <changefreq>daily</changefreq>\n  </url>\n</urlset>\n`
-    );
-  }
-
-  console.log(`Wrote build/site/index.html (pre-rendered, ${stocksOut.length} rows) + data.json + robots.txt${origin ? ' + sitemap.xml' : ''}.`);
-
   db.close();
 }
 

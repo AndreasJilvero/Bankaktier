@@ -37,16 +37,17 @@ jobs:
       - name: Verify native module loads
         run: node -e "require('better-sqlite3'); console.log('better-sqlite3 OK')" || (npm rebuild better-sqlite3 --build-from-source && node -e "require('better-sqlite3'); console.log('better-sqlite3 OK after rebuild')")
 
-      - name: Fetch latest prices, fundamentals and history
+      - name: Fetch prices/fundamentals, run LLM analysis, render site
         env:
           SITE_URL: ${{ vars.SITE_URL }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: npm run build
 
       - name: Commit updated data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add build/data.json build/history.sqlite
+          git add build/data.json build/history.sqlite build/analyses.json
           git diff --cached --quiet && echo "No data changes" || git commit -m "Nightly data refresh $(date -u +%Y-%m-%d)"
           git push
 
