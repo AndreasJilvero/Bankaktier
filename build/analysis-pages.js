@@ -116,7 +116,7 @@ function renderParagraphs(text) {
 function siteHeader() {
   return `<header class="site-header">
     <a class="brand" href="../">Bankaktier Norden</a>
-    <a class="site-nav-link" href="./">Analyser</a>
+    <a class="site-nav-link" href="./">Alla analyser</a>
     <span class="site-index"><span class="site-index-label">OMXS30</span><span class="num" id="bannerOmx">—</span></span>
     <span class="site-index"><span class="site-index-label">Bankindex</span><span class="num" id="bannerBanks">—</span></span>
   </header>`;
@@ -207,7 +207,7 @@ ${headMeta}
   }
   *{box-sizing:border-box;}
   body{margin:0; background:var(--paper); color:var(--ink); font-family:'IBM Plex Sans', system-ui, sans-serif; padding-inline:20px; padding-block:24px 60px;}
-  .wrap{max-width:760px; margin:0 auto;}
+  .wrap{max-width:1180px; margin:0 auto;}
   h1,h2{font-family:'Source Serif 4', Georgia, serif; text-wrap:balance; margin:0;}
   a{color:var(--spruce-deep);}
   .breadcrumb{font-size:0.82rem; color:var(--ink-soft); margin-block-end:18px;}
@@ -218,8 +218,8 @@ ${headMeta}
     font-size:0.86rem;
   }
   .site-header .brand{font-family:'Source Serif 4', Georgia, serif; font-weight:700; font-size:1.05rem; text-decoration:none; color:var(--ink); margin-inline-end:auto;}
-  .site-nav-link{color:var(--ink-soft); text-decoration:none; font-weight:600;}
-  .site-nav-link:hover{color:var(--spruce-deep);}
+  .site-nav-link{color:var(--spruce-deep); text-decoration:underline; text-underline-offset:2px; font-weight:600;}
+  .site-nav-link:hover{color:var(--spruce);}
   .site-index{display:flex; align-items:baseline; gap:5px; font-family:'IBM Plex Mono', monospace;}
   .site-index-label{color:var(--ink-soft); font-size:0.72rem;}
   .site-index .num.up{color:var(--gain);}
