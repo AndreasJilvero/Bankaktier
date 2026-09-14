@@ -214,7 +214,7 @@ ${headMeta}
     --shadow:0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
   }
   *{box-sizing:border-box;}
-  body{margin:0; background:var(--paper); color:var(--ink); font-family:'IBM Plex Sans', system-ui, sans-serif; padding-inline:20px; padding-block:24px 60px;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:'IBM Plex Sans', system-ui, sans-serif; padding-inline:20px; padding-block:18px 40px;}
   .wrap{max-width:1180px; margin:0 auto;}
   h1,h2{font-family:'Source Serif 4', Georgia, serif; text-wrap:balance; margin:0;}
   a{color:var(--spruce-deep);}

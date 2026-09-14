@@ -42,17 +42,6 @@ function renderRangeCell(s) {
   return `<td><div class="range-cell">—</div></td>`;
 }
 
-function renderRecCell(s) {
-  const r = s.recommendations;
-  if (!r) return `<td class="num">—</td>`;
-  const buyN = r.strongBuy + r.buy;
-  const holdN = r.hold;
-  const sellN = r.sell + r.strongSell;
-  const total = buyN + holdN + sellN;
-  if (total <= 0) return `<td><div class="rec-cell">—</div></td>`;
-  return `<td><div class="rec-cell"><div class="rec-bar"><span class="rec-buy" style="width:${(buyN / total * 100).toFixed(1)}%"></span><span class="rec-hold" style="width:${(holdN / total * 100).toFixed(1)}%"></span><span class="rec-sell" style="width:${(sellN / total * 100).toFixed(1)}%"></span></div><span class="subtext">${buyN} / ${holdN} / ${sellN}</span></div></td>`;
-}
-
 function renderRow(s) {
   return `
           <tr data-id="${esc(s.id)}">
@@ -73,11 +62,7 @@ function renderRow(s) {
             <td class="num">${fmtMcap(s.marketCap)}</td>
             <td class="num">${s.dividendYield != null ? fmtNum(s.dividendYield, 2) + '%' : '—'}</td>
             <td class="num">${s.trailingPE != null ? fmtNum(s.trailingPE, 1) : '—'}</td>
-            <td class="num">${s.forwardPE != null ? fmtNum(s.forwardPE, 1) : '—'}</td>
             <td class="num">${s.priceToBook != null ? fmtNum(s.priceToBook, 2) : '—'}</td>
-            <td class="num">${s.returnOnEquity != null ? fmtNum(s.returnOnEquity, 1) + '%' : '—'}</td>
-            ${renderRecCell(s)}
-            <td><div class="price-cell"><span class="num ${pctClass(s.upside)}">${fmtPct(s.upside, 1)}</span><span class="subtext">${s.analystCount != null ? s.analystCount + ' analytiker' : ''}</span></div></td>
           </tr>`;
 }
 

@@ -204,6 +204,7 @@
 
   input[type="checkbox"]{
     width:17px; height:17px; accent-color:var(--spruce); cursor:pointer; vertical-align:middle;
+    background-color:#fff; border:1px solid var(--line); border-radius:3px; appearance:auto;
   }
   .price-cell{display:flex; flex-direction:column; align-items:flex-end; gap:1px;}
   .price-cell .p{font-family:'IBM Plex Mono', monospace; font-weight:600;}
@@ -216,14 +217,6 @@
     transform:translate(-50%,-50%); box-shadow:0 0 0 2px var(--paper-raised);
   }
   .range-cell .range-labels{display:flex; justify-content:space-between; width:100%; font-size:0.6rem; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
-
-  .rec-bar{display:flex; width:74px; height:9px; border-radius:5px; overflow:hidden; margin-left:auto; background:var(--line-soft);}
-  .rec-bar span{display:block; height:100%;}
-  .rec-bar .rec-buy{background:var(--gain);}
-  .rec-bar .rec-hold{background:var(--copper);}
-  .rec-bar .rec-sell{background:var(--loss);}
-  .rec-cell{display:flex; flex-direction:column; align-items:flex-end; gap:3px;}
-  .rec-cell .subtext{font-size:0.62rem; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
 
   .verdict-badge{
     display:inline-flex; align-items:center; padding:4px 11px; border-radius:20px;
@@ -308,11 +301,7 @@
             <th data-sort="marketCap" title="Börsvärde">Börsv.</th>
             <th data-sort="dividendYield" title="Direktavkastning">Direktavk.</th>
             <th data-sort="trailingPE" title="P/E-tal">P/E</th>
-            <th data-sort="forwardPE" title="P/E-tal, prognos">P/E prog.</th>
             <th data-sort="priceToBook" title="Pris/eget kapital">P/B</th>
-            <th data-sort="returnOnEquity" title="Räntabilitet på eget kapital">ROE</th>
-            <th title="Analytikerrekommendationer: köp / behåll / sälj">Rek.</th>
-            <th data-sort="upside" title="Analytikernas snittriktkurs vs. nuvarande kurs">Riktkurs</th>
           </tr>
         </thead>
         <tbody id="tbody"></tbody>
@@ -567,36 +556,10 @@
       tdPE.textContent = s.trailingPE != null ? fmtNum(s.trailingPE, 1) : '—';
       tr.appendChild(tdPE);
 
-      var tdFPE = document.createElement('td');
-      tdFPE.className = 'num';
-      tdFPE.textContent = s.forwardPE != null ? fmtNum(s.forwardPE, 1) : '—';
-      tr.appendChild(tdFPE);
-
       var tdPB = document.createElement('td');
       tdPB.className = 'num';
       tdPB.textContent = s.priceToBook != null ? fmtNum(s.priceToBook, 2) : '—';
       tr.appendChild(tdPB);
-
-      var tdROE = document.createElement('td');
-      tdROE.className = 'num';
-      tdROE.textContent = s.returnOnEquity != null ? fmtNum(s.returnOnEquity, 1) + '%' : '—';
-      tr.appendChild(tdROE);
-
-      tr.appendChild(recommendationCell(s));
-
-      var tdUpside = document.createElement('td');
-      var upsideCell = document.createElement('div');
-      upsideCell.className = 'price-cell';
-      var upsideEl = document.createElement('span');
-      upsideEl.className = 'num ' + pctClass(s.upside);
-      upsideEl.textContent = fmtPct(s.upside, 1);
-      var analystEl = document.createElement('span');
-      analystEl.className = 'subtext';
-      analystEl.textContent = s.analystCount != null ? s.analystCount + ' analytiker' : '';
-      upsideCell.appendChild(upsideEl);
-      upsideCell.appendChild(analystEl);
-      tdUpside.appendChild(upsideCell);
-      tr.appendChild(tdUpside);
 
       tbody.appendChild(tr);
     });
@@ -635,35 +598,6 @@
       labels.innerHTML = '<span>' + fmtNum(s.fiftyTwoWeekLow, 0) + '</span><span>' + fmtNum(s.fiftyTwoWeekHigh, 0) + '</span>';
       cell.appendChild(track);
       cell.appendChild(labels);
-    } else {
-      cell.textContent = '—';
-    }
-    td.appendChild(cell);
-    return td;
-  }
-
-  function recommendationCell(s){
-    var td = document.createElement('td');
-    var r = s.recommendations;
-    if (!r) { td.className = 'num'; td.textContent = '—'; return td; }
-    var buyN = r.strongBuy + r.buy;
-    var holdN = r.hold;
-    var sellN = r.sell + r.strongSell;
-    var total = buyN + holdN + sellN;
-    var cell = document.createElement('div');
-    cell.className = 'rec-cell';
-    if (total > 0) {
-      var bar = document.createElement('div');
-      bar.className = 'rec-bar';
-      bar.innerHTML =
-        '<span class="rec-buy" style="width:' + (buyN / total * 100).toFixed(1) + '%"></span>' +
-        '<span class="rec-hold" style="width:' + (holdN / total * 100).toFixed(1) + '%"></span>' +
-        '<span class="rec-sell" style="width:' + (sellN / total * 100).toFixed(1) + '%"></span>';
-      var label = document.createElement('span');
-      label.className = 'subtext';
-      label.textContent = buyN + ' / ' + holdN + ' / ' + sellN;
-      cell.appendChild(bar);
-      cell.appendChild(label);
     } else {
       cell.textContent = '—';
     }
