@@ -44,57 +44,65 @@ function renderMetricsTable(stock) {
   const recText = rec
     ? `${rec.strongBuy + rec.buy} köp / ${rec.hold} behåll / ${rec.sell + rec.strongSell} sälj`
     : '—';
-  const groups = [
-    {
-      title: 'Kurs & utveckling',
-      tiles: [
-        ['Kurs', `${fmtNum(stock.price, 2)} ${stock.currency}`],
-        ['Idag', fmtPct(stock.changeToday, 2)],
-        ['3 månader', fmtPct(stock.change3m, 2)],
-        ['12 månader', fmtPct(stock.change12m, 2)],
-        ['52v-intervall', stock.fiftyTwoWeekLow != null && stock.fiftyTwoWeekHigh != null ? `${fmtNum(stock.fiftyTwoWeekLow, 0)}–${fmtNum(stock.fiftyTwoWeekHigh, 0)}` : '—'],
-        ['Beta', stock.beta != null ? fmtNum(stock.beta, 2) : '—'],
-      ],
-    },
-    {
-      title: 'Värdering',
-      tiles: [
-        ['Börsvärde', fmtMcap(stock.marketCap)],
-        ['P/E', stock.trailingPE != null ? fmtNum(stock.trailingPE, 1) : '—'],
-        ['P/E prognos', stock.forwardPE != null ? fmtNum(stock.forwardPE, 1) : '—'],
-        ['P/B', stock.priceToBook != null ? fmtNum(stock.priceToBook, 2) : '—'],
-      ],
-    },
-    {
-      title: 'Lönsamhet',
-      tiles: [
-        ['ROE', stock.returnOnEquity != null ? fmtNum(stock.returnOnEquity, 1) + '%' : '—'],
-        ['Rörelsemarginal', stock.operatingMargin != null ? fmtNum(stock.operatingMargin, 1) + '%' : '—'],
-        ['Nettomarginal', stock.netMargin != null ? fmtNum(stock.netMargin, 1) + '%' : '—'],
-      ],
-    },
-    {
-      title: 'Utdelning',
-      tiles: [
-        ['Direktavkastning', stock.dividendYield != null ? fmtNum(stock.dividendYield, 2) + '%' : '—'],
-        ['Utdelningsandel', stock.payoutRatio != null ? fmtNum(stock.payoutRatio, 0) + '%' : '—'],
-      ],
-    },
-    {
-      title: 'Analytiker',
-      tiles: [
-        ['Riktkurs (snitt)', stock.targetMeanPrice != null ? `${Math.round(stock.targetMeanPrice)} ${stock.currency}` : '—'],
-        ['Uppsida', fmtPct(stock.upside, 1)],
-        ['Antal analytiker', stock.analystCount != null ? String(stock.analystCount) : '—'],
-        ['Rekommendationer', recText],
-      ],
-    },
+  // Each row pairs two groups so every row totals 6 tiles (2x3 or 4x2 split as needed).
+  const rows = [
+    [
+      {
+        title: 'Kurs & utveckling',
+        tiles: [
+          ['Kurs', `${fmtNum(stock.price, 2)} ${stock.currency}`],
+          ['Idag', fmtPct(stock.changeToday, 2)],
+          ['3 månader', fmtPct(stock.change3m, 2)],
+          ['12 månader', fmtPct(stock.change12m, 2)],
+          ['52v-intervall', stock.fiftyTwoWeekLow != null && stock.fiftyTwoWeekHigh != null ? `${fmtNum(stock.fiftyTwoWeekLow, 0)}–${fmtNum(stock.fiftyTwoWeekHigh, 0)}` : '—'],
+          ['Beta', stock.beta != null ? fmtNum(stock.beta, 2) : '—'],
+        ],
+      },
+    ],
+    [
+      {
+        title: 'Värdering',
+        tiles: [
+          ['Börsvärde', fmtMcap(stock.marketCap)],
+          ['P/E', stock.trailingPE != null ? fmtNum(stock.trailingPE, 1) : '—'],
+          ['P/E prognos', stock.forwardPE != null ? fmtNum(stock.forwardPE, 1) : '—'],
+          ['P/B', stock.priceToBook != null ? fmtNum(stock.priceToBook, 2) : '—'],
+        ],
+      },
+      {
+        title: 'Utdelning',
+        tiles: [
+          ['Direktavkastning', stock.dividendYield != null ? fmtNum(stock.dividendYield, 2) + '%' : '—'],
+          ['Utdelningsandel', stock.payoutRatio != null ? fmtNum(stock.payoutRatio, 0) + '%' : '—'],
+        ],
+      },
+    ],
+    [
+      {
+        title: 'Analytiker',
+        tiles: [
+          ['Riktkurs (snitt)', stock.targetMeanPrice != null ? `${Math.round(stock.targetMeanPrice)} ${stock.currency}` : '—'],
+          ['Uppsida', fmtPct(stock.upside, 1)],
+          ['Rekommendationer', recText],
+        ],
+      },
+      {
+        title: 'Lönsamhet',
+        tiles: [
+          ['ROE', stock.returnOnEquity != null ? fmtNum(stock.returnOnEquity, 1) + '%' : '—'],
+          ['Rörelsemarginal', stock.operatingMargin != null ? fmtNum(stock.operatingMargin, 1) + '%' : '—'],
+          ['Nettomarginal', stock.netMargin != null ? fmtNum(stock.netMargin, 1) + '%' : '—'],
+        ],
+      },
+    ],
   ];
-  return groups.map((g) => `<div class="metrics-group">
-    <h3 class="metrics-group-title">${esc(g.title)}</h3>
-    <div class="metrics-grid">
-      ${g.tiles.map(([label, value]) => `<div class="metric-tile"><span class="metric-label">${esc(label)}</span><span class="metric-value">${esc(value)}</span></div>`).join('\n      ')}
-    </div>
+  return rows.map((row) => `<div class="metrics-row">
+    ${row.map((g) => `<div class="metrics-group">
+      <h3 class="metrics-group-title">${esc(g.title)}</h3>
+      <div class="metrics-grid">
+        ${g.tiles.map(([label, value]) => `<div class="metric-tile"><span class="metric-label">${esc(label)}</span><span class="metric-value">${esc(value)}</span></div>`).join('\n        ')}
+      </div>
+    </div>`).join('\n    ')}
   </div>`).join('\n  ');
 }
 
@@ -242,9 +250,10 @@ ${headMeta}
   .meta{margin-block-start:16px; font-size:0.78rem; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
   .disclaimer{margin-block-start:20px; font-size:0.78rem; color:var(--ink-soft); line-height:1.6;}
   .metrics-heading{font-size:1rem; margin-block:24px 10px;}
-  .metrics-group{margin-block-end:14px;}
+  .metrics-row{display:flex; flex-wrap:wrap; gap:16px; margin-block-end:14px;}
+  .metrics-row .metrics-group{flex:1 1 260px;}
   .metrics-group-title{font-family:'IBM Plex Sans', system-ui, sans-serif; font-size:0.72rem; font-weight:600; letter-spacing:0.03em; text-transform:uppercase; color:var(--ink-soft); margin:0 0 6px;}
-  .metrics-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(110px, 1fr)); gap:8px;}
+  .metrics-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(0, 1fr)); gap:8px;}
   .metric-tile{
     background:var(--paper-raised); border:1px solid var(--line); border-radius:8px; padding:8px 10px;
     display:flex; flex-direction:column; gap:2px; box-shadow:var(--shadow);
