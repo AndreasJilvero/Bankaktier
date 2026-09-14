@@ -40,7 +40,7 @@ jobs:
       - name: Fetch prices/fundamentals, run LLM analysis, render site
         env:
           SITE_URL: ${{ vars.SITE_URL }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: npm run build
 
       - name: Commit updated data

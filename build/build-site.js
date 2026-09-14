@@ -1,6 +1,8 @@
 // Orchestrates the full nightly build: fetch fresh prices/fundamentals, run the LLM
-// analysis pass (skipped gracefully if ANTHROPIC_API_KEY isn't set), merge each stock's
-// verdict into data.json, then render the standalone site (main page + /analys/ pages).
+// analysis pass (skipped gracefully if GEMINI_API_KEY isn't set; only actually analyzes
+// on Sundays, or for any stock with no analysis yet — see analyze-stocks.js), merge each
+// stock's verdict into data.json, then render the standalone site (main page + /analys/
+// pages).
 //
 // fetch-data.js and analyze-stocks.js are run as separate processes (not required as
 // modules) because each calls process.exit() on completion/failure, which would kill

@@ -1,33 +1,48 @@
-// Nightly LLM analysis: for each bank stock, ask Claude (with web search) to write a
-// short analysis covering current valuation vs. peers, forward estimates, and national
-// macro context, then return a Buy/Neutral/Sell verdict — all in a single call using
-// output_config.format to force the final response into strict JSON alongside the
-// web_search tool. Writes build/analyses.json, consumed by fetch-data.js (verdict badge
-// in the table) and analysis-pages.js (the /analys/ pages).
+// Nightly LLM analysis: for each bank stock, ask Gemini (with Google Search grounding) to
+// write a short analysis covering current valuation vs. peers, forward estimates, and
+// national macro context, then return a Buy/Neutral/Sell verdict. Writes
+// build/analyses.json, consumed by fetch-data.js (verdict badge in the table) and
+// analysis-pages.js (the /analys/ pages).
 //
-// Requires ANTHROPIC_API_KEY. Skipped entirely (with a clear log line, not a failure)
-// if the key isn't set, so local builds and PRs without the secret still work.
+// Requires GEMINI_API_KEY. Skipped entirely (with a clear log line, not a failure) if the
+// key isn't set, so local builds and PRs without the secret still work.
+//
+// Previously used Claude with the web_search_20260209 tool. That tool bundles automatic
+// code-execution-based "dynamic filtering": against this script's real prompt (peer table +
+// long instructions), Claude drove web_search from inside an auto-spawned code_execution
+// environment, batched several queries, hit an internal rate limit, and retried — each
+// retry a full extra paid round trip. That retry storm caused a 2026-09-13 incident (1.7M
+// tokens for 25 stocks, draining the account's funds) and later "Request timed out"
+// GitHub Actions failures. Switched to Gemini for fresher news/grounding and to sidestep
+// that whole failure class.
 const fs = require('fs');
 const path = require('path');
-const Anthropic = require('@anthropic-ai/sdk');
+const { GoogleGenAI, Type } = require('@google/genai');
 
 const COUNTRY_NAME = { SE: 'Sverige', DK: 'Danmark', FI: 'Finland', NO: 'Norge' };
-const MODEL = 'claude-opus-5';
+// Flash rather than Pro: this is a factual comparison/summarization task (peer valuation,
+// search-result summary, verdict), not open-ended reasoning, and the cost difference is
+// real — see MAX_TOTAL_TOKENS below. gemini-2.5-flash was retired for new API keys as of
+// this writing; 3.6 is the current Flash-tier model.
+const MODEL = 'gemini-3.6-flash';
 
-const ANALYSIS_SCHEMA = {
-  type: 'json_schema',
-  schema: {
-    type: 'object',
-    properties: {
-      analysis: {
-        type: 'string',
-        description: 'The full analysis text in Swedish, 5-10 sentences, no markdown formatting.',
-      },
-      verdict: { type: 'string', enum: ['Buy', 'Neutral', 'Sell'] },
+// Hard, token-denominated safety net for the whole run, independent of any specific bug.
+// This aborts the ENTIRE run, not just one stock, the moment cumulative usage crosses the
+// threshold, so a repeat of a runaway-cost failure mode costs at most this many tokens
+// instead of running unchecked to completion. ~300k tokens is comfortably above what 25
+// grounded Flash calls need normally. Raise it deliberately if that stops being true.
+const MAX_TOTAL_TOKENS = 300000;
+
+const ANALYSIS_RESPONSE_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    analysis: {
+      type: Type.STRING,
+      description: 'The full analysis text in Swedish, 5-10 sentences, no markdown formatting.',
     },
-    required: ['analysis', 'verdict'],
-    additionalProperties: false,
+    verdict: { type: Type.STRING, enum: ['Buy', 'Neutral', 'Sell'] },
   },
+  required: ['analysis', 'verdict'],
 };
 
 function fmtMetric(v, suffix) {
@@ -78,53 +93,63 @@ Skriv en analys på svenska, 5-10 meningar, som täcker:
 2. Prognoser och förväntad utveckling (analytikerkonsensus, vinsttillväxt)
 3. Makroläget i ${countryName} på nationell nivå och hur det påverkar bankens affär
 
-Avsluta analysen med en tydlig sammanfattande mening om huvudargumentet för eller emot aktien. Skriv rakt och konkret, undvik disclaimers och floskler. Sätt sedan ett samlat betyg (Buy/Neutral/Sell) som sammanfattar helhetsbilden.`;
+Avsluta analysen med en tydlig sammanfattande mening om huvudargumentet för eller emot aktien. Skriv rakt och konkret, undvik disclaimers och floskler.
+
+Svara ENDAST med ett JSON-objekt på formen {"analysis": "...", "verdict": "Buy" | "Neutral" | "Sell"} — ingen markdown, ingen kodblocksmarkering, ingen extra text före eller efter.`;
 }
 
-// Hard ceiling on pause_turn resumes per stock. This is a real safety limit, not a
-// tuning knob: on 2026-09-13 this loop had no cap at all, and a nightly run against
-// all 25 stocks ran for 52 minutes and burned through the account's funds before
-// ultimately failing -- almost certainly this exact loop failing to converge when
-// combining web_search with output_config.format. Each resume is a full paid API call
-// (with web search), so this bounds worst-case cost per stock, not just wall time.
-const MAX_TURN_RESUMES = 3;
+// Gemini's grounding tool (googleSearch) and structured output (responseSchema) cannot be
+// combined in one request — the API drops or rejects the schema when a tool is present. So
+// this asks for JSON via prompt instructions instead (see buildPrompt's final paragraph)
+// and parses the model's text manually, tolerating a ```json fence if the model adds one.
+function extractJson(text) {
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const candidate = fenced ? fenced[1] : text;
+  const start = candidate.indexOf('{');
+  const end = candidate.lastIndexOf('}');
+  if (start === -1 || end === -1 || end < start) {
+    throw new Error(`no JSON object found in response text: ${text.slice(0, 200)}`);
+  }
+  return JSON.parse(candidate.slice(start, end + 1));
+}
 
-async function analyzeStock(client, stock, peers) {
-  const params = {
+async function analyzeStock(ai, stock, peers) {
+  const response = await ai.models.generateContent({
     model: MODEL,
-    max_tokens: 2000,
-    tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 4 }],
-    output_config: { format: ANALYSIS_SCHEMA },
-    messages: [{ role: 'user', content: buildPrompt(stock, peers) }],
-  };
+    contents: buildPrompt(stock, peers),
+    config: {
+      tools: [{ googleSearch: {} }],
+      maxOutputTokens: 8000,
+    },
+  });
 
-  let response = await client.messages.parse(params);
-  let messages = params.messages;
-  let resumes = 0;
-  // Resume if a long tool-use turn paused before the model produced its final answer.
-  while (response.stop_reason === 'pause_turn') {
-    resumes += 1;
-    if (resumes > MAX_TURN_RESUMES) {
-      throw new Error(`gave up after ${MAX_TURN_RESUMES} pause_turn resumes for ${stock.id} — refusing to keep calling the API`);
-    }
-    messages = [...messages, { role: 'assistant', content: response.content }];
-    response = await client.messages.parse({ ...params, messages });
+  const text = response.text;
+  if (!text) {
+    throw new Error(`empty response for ${stock.id} (finishReason: ${response.candidates?.[0]?.finishReason})`);
   }
 
-  const parsed = response.parsed_output;
+  const parsed = extractJson(text);
   if (!parsed || !parsed.analysis || !['Buy', 'Neutral', 'Sell'].includes(parsed.verdict)) {
-    throw new Error(`invalid structured output for ${stock.id} (stop_reason: ${response.stop_reason}): ${JSON.stringify(parsed)}`);
+    throw new Error(`invalid structured output for ${stock.id}: ${JSON.stringify(parsed)}`);
   }
 
-  return { verdict: parsed.verdict, text: parsed.analysis.trim() };
+  const usage = response.usageMetadata || {};
+  return {
+    verdict: parsed.verdict,
+    text: parsed.analysis.trim(),
+    tokens: {
+      input: usage.promptTokenCount || 0,
+      output: (usage.candidatesTokenCount || 0) + (usage.thoughtsTokenCount || 0),
+    },
+  };
 }
 
 async function main() {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   const outputPath = path.join(__dirname, 'analyses.json');
 
   if (!apiKey) {
-    console.log('ANTHROPIC_API_KEY not set — skipping LLM analysis.');
+    console.log('GEMINI_API_KEY not set — skipping LLM analysis.');
     if (!fs.existsSync(outputPath)) {
       fs.writeFileSync(outputPath, JSON.stringify({ generatedAt: null, analyses: {} }));
     }
@@ -132,27 +157,43 @@ async function main() {
   }
 
   const data = JSON.parse(fs.readFileSync(path.join(__dirname, 'data.json'), 'utf8'));
-  // 90s per HTTP request (not per stock — a stock can still take longer across
-  // pause_turn resumes, but each individual call is bounded so a single hung request
-  // can't stall the whole nightly job indefinitely).
-  const client = new Anthropic({ apiKey, timeout: 90 * 1000 });
+  const ai = new GoogleGenAI({ apiKey });
 
   const existing = fs.existsSync(outputPath)
     ? JSON.parse(fs.readFileSync(outputPath, 'utf8'))
     : { generatedAt: null, analyses: {} };
   const analyses = { ...existing.analyses };
 
+  // Analysis (with web search + grounding) is the most expensive part of the nightly
+  // build, and valuations/macro context don't meaningfully change day to day — so only
+  // re-run it once a week (Sunday), except for a stock with no analysis yet at all, which
+  // always gets one immediately rather than waiting up to a week for its first verdict.
+  const isSunday = new Date().getUTCDay() === 0;
+  const stocksToAnalyze = data.stocks.filter((s) => isSunday || !analyses[s.id]);
+  if (!isSunday && stocksToAnalyze.length === 0) {
+    console.log('Not Sunday and every stock already has an analysis — skipping LLM analysis run.');
+    return;
+  }
+  if (!isSunday) {
+    console.log(`Not Sunday — only analyzing ${stocksToAnalyze.length} stock(s) with no existing analysis.`);
+  }
+
   // Circuit breaker: if the first few stocks all fail, stop instead of repeating the
   // same (potentially expensive) mistake across all 25 — e.g. a bad request shape or a
   // systemic API issue should fail fast, not burn budget finding out the hard way 25 times.
   const CIRCUIT_BREAKER_THRESHOLD = 4;
   let consecutiveFailures = 0;
+  let totalTokensUsed = 0;
 
-  for (const stock of data.stocks) {
+  for (const stock of stocksToAnalyze) {
+    if (totalTokensUsed >= MAX_TOTAL_TOKENS) {
+      console.log(`Hit the ${MAX_TOTAL_TOKENS.toLocaleString()}-token run budget (used ${totalTokensUsed.toLocaleString()}) — stopping before analyzing ${stock.name}.`);
+      break;
+    }
     process.stdout.write(`Analyzing ${stock.name}... `);
     try {
       const peers = selectPeers(stock, data.stocks);
-      const result = await analyzeStock(client, stock, peers);
+      const result = await analyzeStock(ai, stock, peers);
       analyses[stock.id] = {
         name: stock.name,
         country: stock.country,
@@ -160,7 +201,8 @@ async function main() {
         text: result.text,
         generatedAt: new Date().toISOString(),
       };
-      console.log(result.verdict);
+      totalTokensUsed += result.tokens.input + result.tokens.output;
+      console.log(`${result.verdict} (${result.tokens.input.toLocaleString()} in / ${result.tokens.output.toLocaleString()} out, running total ${totalTokensUsed.toLocaleString()})`);
       consecutiveFailures = 0;
     } catch (e) {
       console.log(`FAILED (${e.message})`);
@@ -177,7 +219,7 @@ async function main() {
   }
 
   fs.writeFileSync(outputPath, JSON.stringify({ generatedAt: new Date().toISOString(), analyses }, null, 2));
-  console.log(`Wrote build/analyses.json (${Object.keys(analyses).length} analyses).`);
+  console.log(`Wrote build/analyses.json (${Object.keys(analyses).length} analyses). Total tokens used this run: ${totalTokensUsed.toLocaleString()}.`);
 }
 
 main().catch((e) => {

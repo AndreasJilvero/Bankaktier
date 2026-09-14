@@ -82,6 +82,7 @@ ${canonical}
   .verdict-buy{background:var(--gain-wash); color:var(--gain);}
   .verdict-neutral{background:var(--neutral-wash); color:var(--neutral);}
   .verdict-sell{background:var(--loss-wash); color:var(--loss);}
+  .analyzed-stamp{margin:8px 0 0; font-size:0.78rem; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
   article{background:var(--paper-raised); border:1px solid var(--line); border-radius:10px; padding:22px 26px; box-shadow:var(--shadow); font-size:1rem; line-height:1.7;}
   article p{margin:0 0 14px;}
   article p:last-child{margin-bottom:0;}
@@ -96,6 +97,8 @@ ${canonical}
   .index-list a:hover{color:var(--spruce-deep);}
   .index-name{font-weight:600;}
   .index-country{font-size:0.8rem; color:var(--ink-soft); font-weight:400;}
+  .index-right{display:flex; align-items:center; gap:10px;}
+  .index-date{font-size:0.76rem; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
   .empty-note{color:var(--ink-soft); font-size:0.92rem; padding:20px 0;}
   :focus-visible{outline:2px solid var(--spruce); outline-offset:2px;}
 </style>
@@ -124,12 +127,12 @@ function buildAnalysisPages(data, analysesData, { siteUrl } = {}) {
   const indexBody = `
   <header class="page-head">
     <h1>Aktieanalyser</h1>
-    <p class="sub">AI-genererade analyser av nordiska bankaktier, uppdaterade varje natt. Täcker värdering, prognoser och makroläge per land.</p>
+    <p class="sub">AI-genererade analyser av nordiska bankaktier, uppdaterade varje söndag. Täcker värdering, prognoser och makroläge per land.</p>
   </header>
   ${indexRows.length ? `<ul class="index-list">
-    ${indexRows.map((a) => `<li><a href="./${esc(a.id)}.html"><span class="index-name">${COUNTRY_FLAG[a.stock.country] || ''} ${esc(a.stock.name)} <span class="index-country">${esc(COUNTRY_LABEL[a.stock.country] || a.stock.country)}</span></span><span class="verdict-badge ${VERDICT_CLASS[a.verdict] || 'verdict-neutral'}">${esc(VERDICT_LABEL[a.verdict] || a.verdict)}</span></a></li>`).join('\n    ')}
+    ${indexRows.map((a) => `<li><a href="./${esc(a.id)}.html"><span class="index-name">${COUNTRY_FLAG[a.stock.country] || ''} ${esc(a.stock.name)} <span class="index-country">${esc(COUNTRY_LABEL[a.stock.country] || a.stock.country)}</span></span><span class="index-right"><span class="index-date">${a.generatedAt ? esc(a.generatedAt.slice(0, 10)) : ''}</span><span class="verdict-badge ${VERDICT_CLASS[a.verdict] || 'verdict-neutral'}">${esc(VERDICT_LABEL[a.verdict] || a.verdict)}</span></span></a></li>`).join('\n    ')}
   </ul>` : `<p class="empty-note">Inga analyser genererade ännu.</p>`}
-  <p class="disclaimer">Analyserna skapas automatiskt av en AI-modell (Claude) baserat på nyckeltal och webbsökning, och uppdateras varje natt. De är inte investeringsrådgivning och kan innehålla felaktigheter — verifiera alltid själv innan du fattar investeringsbeslut.</p>
+  <p class="disclaimer">Analyserna skapas automatiskt av en AI-modell (Gemini) baserat på nyckeltal och webbsökning, och uppdateras varje söndag. De är inte investeringsrådgivning och kan innehålla felaktigheter — verifiera alltid själv innan du fattar investeringsbeslut.</p>
   <p class="breadcrumb" style="margin-top:24px;"><a href="../">&larr; Tillbaka till tabellen</a></p>
 `;
 
@@ -146,17 +149,19 @@ function buildAnalysisPages(data, analysesData, { siteUrl } = {}) {
     const stock = stocksById[id];
     if (!stock) continue;
     const generated = a.generatedAt ? new Date(a.generatedAt).toLocaleString('sv-SE', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+    const analyzedDate = a.generatedAt ? a.generatedAt.slice(0, 10) : '';
     const body = `
   <p class="breadcrumb"><a href="../">Bankaktier Norden</a> &rsaquo; <a href="./">Analyser</a> &rsaquo; ${esc(stock.name)}</p>
   <header class="page-head">
     <h1>${COUNTRY_FLAG[stock.country] || ''} ${esc(stock.name)}</h1>
     <p class="sub">${esc(stock.fullName)} &middot; ${esc(COUNTRY_LABEL[stock.country] || stock.country)}</p>
     <span class="verdict-badge ${VERDICT_CLASS[a.verdict] || 'verdict-neutral'}">${esc(VERDICT_LABEL[a.verdict] || a.verdict)}</span>
+    ${analyzedDate ? `<p class="analyzed-stamp">Analyserad ${esc(analyzedDate)}</p>` : ''}
   </header>
   <article>
     ${renderParagraphs(a.text)}
   </article>
-  <p class="meta">${generated ? `Genererad ${esc(generated)} av Claude (Anthropic), med webbsökning.` : ''}</p>
+  <p class="meta">${generated ? `Genererad ${esc(generated)} av Gemini (Google), med webbsökning.` : ''}</p>
   <p class="disclaimer">Den här analysen är automatiskt skapad av en AI-modell och är inte investeringsrådgivning. Nyckeltal och webbresultat kan vara föråldrade eller felaktiga — verifiera alltid själv innan du fattar investeringsbeslut.</p>
 `;
     pages[`analys/${id}.html`] = pageShell({

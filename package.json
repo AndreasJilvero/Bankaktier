@@ -15,7 +15,7 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.125.0",
+    "@google/genai": "^2.22.0",
     "better-sqlite3": "^13.0.3"
   }
 }
