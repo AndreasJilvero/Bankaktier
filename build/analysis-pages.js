@@ -78,28 +78,17 @@ function renderParagraphs(text) {
     .join('\n');
 }
 
-// Shared header for every page this module renders (the /analys/ index and each
-// per-stock page) — mirrors the main table page's masthead so visitors can navigate back
-// to the table and see the same live index snapshot from wherever they are, matching
-// build/app.html's markup/IDs closely enough to reuse its Yahoo-proxy live-fetch pattern.
-function siteHeader(active) {
+// Compact, single-row shared header for every page this module renders (the /analys/
+// index and each per-stock page): site name, a link to the analyses index, and the two
+// live index prices — matching build/app.html's IDs closely enough to reuse its
+// Yahoo-proxy live-fetch pattern.
+function siteHeader() {
   return `<header class="site-header">
     <a class="brand" href="../">Bankaktier Norden</a>
-    <nav class="site-nav">
-      <a href="../"${active === 'table' ? ' class="active"' : ''}>Tabellen</a>
-      <a href="./"${active === 'analyses' ? ' class="active"' : ''}>Analyser</a>
-    </nav>
-  </header>
-  <section class="site-banner" id="siteBanner">
-    <div class="banner-tile">
-      <span class="banner-label">OMXS30 idag</span>
-      <span class="banner-value num" id="bannerOmx">—</span>
-    </div>
-    <div class="banner-tile">
-      <span class="banner-label">OMX Stockholm Banks GI idag</span>
-      <span class="banner-value num" id="bannerBanks">—</span>
-    </div>
-  </section>`;
+    <a class="site-nav-link" href="./">Analyser</a>
+    <span class="site-index"><span class="site-index-label">OMXS30</span><span class="num" id="bannerOmx">—</span></span>
+    <span class="site-index"><span class="site-index-label">Bankindex</span><span class="num" id="bannerBanks">—</span></span>
+  </header>`;
 }
 
 // Minimal, self-contained port of app.html's live index-banner fetch (same Cloudflare
@@ -142,7 +131,7 @@ const SITE_BANNER_SCRIPT = `<script>
 })();
 </script>`;
 
-function pageShell({ title, description, siteUrl, bodyHtml, canonicalPath, noindex, active }) {
+function pageShell({ title, description, siteUrl, bodyHtml, canonicalPath, noindex }) {
   const canonical = !noindex && siteUrl ? `<link rel="canonical" href="${esc(siteUrl.replace(/\/+$/, ''))}${canonicalPath}">` : '';
   const headMeta = noindex
     ? `<meta name="robots" content="noindex, nofollow">`
@@ -193,22 +182,17 @@ ${headMeta}
   .breadcrumb{font-size:0.82rem; color:var(--ink-soft); margin-block-end:18px;}
   .breadcrumb a{color:var(--ink-soft); text-decoration:underline;}
   header.site-header{
-    display:flex; flex-wrap:wrap; gap:12px 24px; align-items:center; justify-content:space-between;
-    padding-block-end:12px; margin-block-end:16px; border-bottom:2px solid var(--ink);
+    display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center;
+    padding-block:10px; margin-block-end:20px; border-bottom:2px solid var(--ink);
+    font-size:0.86rem;
   }
-  .site-header .brand{font-family:'Source Serif 4', Georgia, serif; font-weight:700; font-size:1.15rem; text-decoration:none; color:var(--ink);}
-  .site-nav{display:flex; gap:16px; font-size:0.86rem; font-weight:600;}
-  .site-nav a{color:var(--ink-soft); text-decoration:none;}
-  .site-nav a.active, .site-nav a:hover{color:var(--spruce-deep);}
-  .site-banner{display:flex; gap:10px; flex-wrap:wrap; margin-block-end:18px;}
-  .site-banner .banner-tile{
-    flex:1 1 160px; display:flex; flex-direction:column; gap:3px; padding:9px 14px;
-    background:var(--paper-raised); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow);
-  }
-  .site-banner .banner-label{font-size:0.68rem; letter-spacing:0.04em; text-transform:uppercase; color:var(--ink-soft);}
-  .site-banner .banner-value{font-size:1.05rem; font-weight:600; font-family:'IBM Plex Mono', monospace;}
-  .site-banner .banner-value.up{color:var(--gain);}
-  .site-banner .banner-value.down{color:var(--loss);}
+  .site-header .brand{font-family:'Source Serif 4', Georgia, serif; font-weight:700; font-size:1.05rem; text-decoration:none; color:var(--ink); margin-inline-end:auto;}
+  .site-nav-link{color:var(--ink-soft); text-decoration:none; font-weight:600;}
+  .site-nav-link:hover{color:var(--spruce-deep);}
+  .site-index{display:flex; align-items:baseline; gap:5px; font-family:'IBM Plex Mono', monospace;}
+  .site-index-label{color:var(--ink-soft); font-size:0.72rem;}
+  .site-index .num.up{color:var(--gain);}
+  .site-index .num.down{color:var(--loss);}
   header.page-head{border-bottom:2px solid var(--ink); padding-block-end:16px; margin-block-end:20px;}
   header.page-head h1{font-size:clamp(1.5rem, 1.2rem + 1.4vw, 2rem); font-weight:700; line-height:1.15;}
   .page-head .sub{margin:8px 0 0; color:var(--ink-soft); font-size:0.92rem;}
@@ -252,7 +236,7 @@ ${headMeta}
 </head>
 <body>
 <div class="wrap">
-${siteHeader(active)}
+${siteHeader()}
 ${bodyHtml}
 </div>
 ${SITE_BANNER_SCRIPT}
@@ -279,7 +263,7 @@ function buildAnalysisPages(data, analysesData, { siteUrl } = {}) {
     <p class="sub">Analyser av nordiska bankaktier. Täcker värdering, prognoser och makroläge per land.</p>
   </header>
   ${indexRows.length ? `<ul class="index-list">
-    ${indexRows.map((a) => `<li><a href="./${esc(a.id)}.html"><span class="index-name">${COUNTRY_FLAG[a.stock.country] || ''} ${esc(a.stock.name)} <span class="index-country">${esc(COUNTRY_LABEL[a.stock.country] || a.stock.country)}</span></span><span class="index-right"><span class="verdict-badge ${VERDICT_CLASS[a.verdict] || 'verdict-neutral'}">${esc(VERDICT_LABEL[a.verdict] || a.verdict)}</span><span class="index-meta">${a.priceAtAnalysis != null ? esc(fmtPrice(a.priceAtAnalysis, a.currency)) + ' &middot; ' : ''}${a.generatedAt ? esc(a.generatedAt.slice(0, 10)) : ''}</span></span></a></li>`).join('\n    ')}
+    ${indexRows.map((a) => `<li><a href="./${esc(a.id)}.html"><span class="index-name">${COUNTRY_FLAG[a.stock.country] || ''} ${esc(a.stock.name)} <span class="index-country">${esc(COUNTRY_LABEL[a.stock.country] || a.stock.country)}</span></span><span class="index-right"><span class="verdict-badge ${VERDICT_CLASS[a.verdict] || 'verdict-neutral'}">${esc(VERDICT_LABEL[a.verdict] || a.verdict)}</span><span class="index-meta" title="Kurs vid analystillfället">${a.priceAtAnalysis != null ? `Kurs vid analys ${esc(fmtPrice(a.priceAtAnalysis, a.currency))}` + ' &middot; ' : ''}${a.generatedAt ? esc(a.generatedAt.slice(0, 10)) : ''}</span></span></a></li>`).join('\n    ')}
   </ul>` : `<p class="empty-note">Inga analyser genererade ännu.</p>`}
   <p class="disclaimer">Analyserna är inte investeringsrådgivning och kan innehålla felaktigheter — verifiera alltid själv innan du fattar investeringsbeslut.</p>
 `;
@@ -290,7 +274,6 @@ function buildAnalysisPages(data, analysesData, { siteUrl } = {}) {
     siteUrl,
     canonicalPath: '/analys/',
     bodyHtml: indexBody,
-    active: 'analyses',
   });
 
   // Per-stock pages
@@ -320,7 +303,6 @@ function buildAnalysisPages(data, analysesData, { siteUrl } = {}) {
       siteUrl,
       canonicalPath: `/analys/${id}.html`,
       bodyHtml: body,
-      active: 'analyses',
     });
 
     // Hidden debug page: not linked from anywhere, excluded from the sitemap (see
