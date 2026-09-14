@@ -195,6 +195,8 @@
   tbody th.col-name{text-align:left; font-weight:600; font-family:'IBM Plex Sans';}
   .name-cell{display:flex; flex-direction:column; gap:2px;}
   .name-cell .full{font-size:0.74rem; color:var(--ink-soft); font-weight:400;}
+  .name-link{color:inherit; text-decoration:none;}
+  .name-link:hover{color:var(--spruce-deep); text-decoration:underline;}
   .cat-pill{
     display:inline-block; font-size:0.64rem; font-family:'IBM Plex Mono', monospace; letter-spacing:0.04em;
     text-transform:uppercase; padding:2px 7px; border-radius:20px; margin-top:3px; width:fit-content;
@@ -313,16 +315,12 @@
             <th data-sort="changeToday">Idag</th>
             <th data-sort="change3m">3 mån</th>
             <th data-sort="change12m">12 mån</th>
-            <th data-sort="beta" title="Beta, volatilitet mot marknaden">Beta</th>
             <th data-sort="marketCap" title="Börsvärde">Börsv.</th>
             <th data-sort="dividendYield" title="Direktavkastning">Direktavk.</th>
-            <th data-sort="payoutRatio" title="Utdelningsandel">Utd.andel</th>
             <th data-sort="trailingPE" title="P/E-tal">P/E</th>
             <th data-sort="forwardPE" title="P/E-tal, prognos">P/E prog.</th>
             <th data-sort="priceToBook" title="Pris/eget kapital">P/B</th>
             <th data-sort="returnOnEquity" title="Räntabilitet på eget kapital">ROE</th>
-            <th data-sort="operatingMargin" title="Rörelseresultat / totala intäkter">Rörelsemarg.</th>
-            <th data-sort="netMargin" title="Nettoresultat / totala intäkter (efter skatt och engångsposter)">Nettomarg.</th>
             <th title="Analytikerrekommendationer: köp / behåll / sälj">Rek.</th>
             <th data-sort="upside" title="Analytikernas snittriktkurs vs. nuvarande kurs">Riktkurs</th>
           </tr>
@@ -514,15 +512,19 @@
       thName.scope = 'row';
       var nameCell = document.createElement('div');
       nameCell.className = 'name-cell';
+      var nameLink = document.createElement('a');
+      nameLink.className = 'name-link';
+      nameLink.href = s.analysisUrl || '#';
       var nameEl = document.createElement('span');
       nameEl.textContent = (COUNTRY_FLAG[s.country] || '') + ' ' + s.name;
+      nameLink.appendChild(nameEl);
       var fullEl = document.createElement('span');
       fullEl.className = 'full';
       fullEl.textContent = s.fullName;
       var pill = document.createElement('span');
       pill.className = 'cat-pill ' + s.category;
       pill.textContent = CAT_LABEL[s.category] || s.category;
-      nameCell.appendChild(nameEl);
+      nameCell.appendChild(nameLink);
       nameCell.appendChild(fullEl);
       nameCell.appendChild(pill);
       thName.appendChild(nameCell);
@@ -560,11 +562,6 @@
       tr.appendChild(pctCell(perfValue(s.change3m, DATA.omxBenchmark.change3m)));
       tr.appendChild(pctCell(perfValue(s.change12m, DATA.omxBenchmark.change12m)));
 
-      var tdBeta = document.createElement('td');
-      tdBeta.className = 'num';
-      tdBeta.textContent = s.beta != null ? fmtNum(s.beta, 2) : '—';
-      tr.appendChild(tdBeta);
-
       var tdMcap = document.createElement('td');
       tdMcap.className = 'num';
       tdMcap.textContent = fmtMcap(s.marketCap);
@@ -574,11 +571,6 @@
       tdDiv.className = 'num';
       tdDiv.textContent = s.dividendYield != null ? fmtNum(s.dividendYield, 2) + '%' : '—';
       tr.appendChild(tdDiv);
-
-      var tdPayout = document.createElement('td');
-      tdPayout.className = 'num';
-      tdPayout.textContent = s.payoutRatio != null ? fmtNum(s.payoutRatio, 0) + '%' : '—';
-      tr.appendChild(tdPayout);
 
       var tdPE = document.createElement('td');
       tdPE.className = 'num';
@@ -599,16 +591,6 @@
       tdROE.className = 'num';
       tdROE.textContent = s.returnOnEquity != null ? fmtNum(s.returnOnEquity, 1) + '%' : '—';
       tr.appendChild(tdROE);
-
-      var tdOpMargin = document.createElement('td');
-      tdOpMargin.className = 'num';
-      tdOpMargin.textContent = s.operatingMargin != null ? fmtNum(s.operatingMargin, 1) + '%' : '—';
-      tr.appendChild(tdOpMargin);
-
-      var tdNetMargin = document.createElement('td');
-      tdNetMargin.className = 'num';
-      tdNetMargin.textContent = s.netMargin != null ? fmtNum(s.netMargin, 1) + '%' : '—';
-      tr.appendChild(tdNetMargin);
 
       tr.appendChild(recommendationCell(s));
 

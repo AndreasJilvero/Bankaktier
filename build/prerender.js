@@ -59,7 +59,7 @@ function renderRow(s) {
             <td class="col-check"><input type="checkbox" aria-label="Visa ${esc(s.name)} i diagrammet"></td>
             <th class="col-name" scope="row">
               <div class="name-cell">
-                <span>${COUNTRY_FLAG[s.country] || ''} ${esc(s.name)}</span>
+                <a class="name-link" href="${esc(s.analysisUrl || '#')}"><span>${COUNTRY_FLAG[s.country] || ''} ${esc(s.name)}</span></a>
                 <span class="full">${esc(s.fullName)}</span>
                 <span class="cat-pill ${esc(s.category)}">${esc(CAT_LABEL[s.category] || s.category)}</span>
               </div>
@@ -70,16 +70,12 @@ function renderRow(s) {
             <td class="num ${pctClass(s.changeToday)}" id="today-${esc(s.id)}">${fmtPct(s.changeToday, 2)}</td>
             <td class="num ${pctClass(s.change3m)}">${fmtPct(s.change3m, 2)}</td>
             <td class="num ${pctClass(s.change12m)}">${fmtPct(s.change12m, 2)}</td>
-            <td class="num">${s.beta != null ? fmtNum(s.beta, 2) : '—'}</td>
             <td class="num">${fmtMcap(s.marketCap)}</td>
             <td class="num">${s.dividendYield != null ? fmtNum(s.dividendYield, 2) + '%' : '—'}</td>
-            <td class="num">${s.payoutRatio != null ? fmtNum(s.payoutRatio, 0) + '%' : '—'}</td>
             <td class="num">${s.trailingPE != null ? fmtNum(s.trailingPE, 1) : '—'}</td>
             <td class="num">${s.forwardPE != null ? fmtNum(s.forwardPE, 1) : '—'}</td>
             <td class="num">${s.priceToBook != null ? fmtNum(s.priceToBook, 2) : '—'}</td>
             <td class="num">${s.returnOnEquity != null ? fmtNum(s.returnOnEquity, 1) + '%' : '—'}</td>
-            <td class="num">${s.operatingMargin != null ? fmtNum(s.operatingMargin, 1) + '%' : '—'}</td>
-            <td class="num">${s.netMargin != null ? fmtNum(s.netMargin, 1) + '%' : '—'}</td>
             ${renderRecCell(s)}
             <td><div class="price-cell"><span class="num ${pctClass(s.upside)}">${fmtPct(s.upside, 1)}</span><span class="subtext">${s.analystCount != null ? s.analystCount + ' analytiker' : ''}</span></div></td>
           </tr>`;

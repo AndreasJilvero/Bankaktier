@@ -19,6 +19,54 @@ function fmtPrice(v, currency) {
   return v.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + (currency ? ` ${currency}` : '');
 }
 
+function fmtNum(v, decimals) {
+  if (v === null || v === undefined || Number.isNaN(v)) return '—';
+  return v.toLocaleString('sv-SE', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+function fmtPct(v, decimals) {
+  if (v === null || v === undefined || Number.isNaN(v)) return '—';
+  const s = v.toLocaleString('sv-SE', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  return (v > 0 ? '+' : '') + s + '%';
+}
+function fmtMcap(v) {
+  if (v === null || v === undefined) return '—';
+  return (v / 1e9).toLocaleString('sv-SE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' Mdkr';
+}
+
+// Full metric set for the stock's analysis page — includes everything shown in the main
+// table plus the columns moved off it (Beta, utdelningsandel, marginaler) to keep the
+// table itself scannable without a wide horizontal scroll.
+function renderMetricsTable(stock) {
+  const rec = stock.recommendations;
+  const recText = rec
+    ? `${rec.strongBuy + rec.buy} köp / ${rec.hold} behåll / ${rec.sell + rec.strongSell} sälj`
+    : '—';
+  const rows = [
+    ['Kurs', `${fmtNum(stock.price, 2)} ${stock.currency}`],
+    ['Idag', fmtPct(stock.changeToday, 2)],
+    ['3 månader', fmtPct(stock.change3m, 2)],
+    ['12 månader', fmtPct(stock.change12m, 2)],
+    ['52-veckorsintervall', stock.fiftyTwoWeekLow != null && stock.fiftyTwoWeekHigh != null ? `${fmtNum(stock.fiftyTwoWeekLow, 0)} – ${fmtNum(stock.fiftyTwoWeekHigh, 0)} ${stock.currency}` : '—'],
+    ['Börsvärde', fmtMcap(stock.marketCap)],
+    ['Beta', stock.beta != null ? fmtNum(stock.beta, 2) : '—'],
+    ['P/E (historiskt)', stock.trailingPE != null ? fmtNum(stock.trailingPE, 1) : '—'],
+    ['P/E (prognos)', stock.forwardPE != null ? fmtNum(stock.forwardPE, 1) : '—'],
+    ['P/B', stock.priceToBook != null ? fmtNum(stock.priceToBook, 2) : '—'],
+    ['ROE', stock.returnOnEquity != null ? fmtNum(stock.returnOnEquity, 1) + '%' : '—'],
+    ['Rörelsemarginal', stock.operatingMargin != null ? fmtNum(stock.operatingMargin, 1) + '%' : '—'],
+    ['Nettomarginal', stock.netMargin != null ? fmtNum(stock.netMargin, 1) + '%' : '—'],
+    ['Direktavkastning', stock.dividendYield != null ? fmtNum(stock.dividendYield, 2) + '%' : '—'],
+    ['Utdelningsandel', stock.payoutRatio != null ? fmtNum(stock.payoutRatio, 0) + '%' : '—'],
+    ['Riktkurs (snitt)', stock.targetMeanPrice != null ? `${Math.round(stock.targetMeanPrice)} ${stock.currency}` : '—'],
+    ['Uppsida mot riktkurs', fmtPct(stock.upside, 1)],
+    ['Antal analytiker', stock.analystCount != null ? String(stock.analystCount) : '—'],
+    ['Rekommendationer', recText],
+  ];
+  return `<table class="metrics-table">
+    ${rows.map(([label, value]) => `<tr><th>${esc(label)}</th><td>${esc(value)}</td></tr>`).join('\n    ')}
+  </table>`;
+}
+
 // Analysis text is plain prose from the LLM (Swedish, no markdown expected) — split
 // into paragraphs on blank lines and escape, rather than trusting it as pre-formed HTML.
 function renderParagraphs(text) {
@@ -97,6 +145,12 @@ ${headMeta}
   article p:last-child{margin-bottom:0;}
   .meta{margin-block-start:16px; font-size:0.78rem; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
   .disclaimer{margin-block-start:20px; font-size:0.78rem; color:var(--ink-soft); line-height:1.6;}
+  .metrics-heading{font-size:1rem; margin-block:24px 10px;}
+  .metrics-table{width:100%; border-collapse:collapse; background:var(--paper-raised); border:1px solid var(--line); border-radius:10px; overflow:hidden; box-shadow:var(--shadow); font-size:0.88rem;}
+  .metrics-table tr:not(:last-child) th, .metrics-table tr:not(:last-child) td{border-bottom:1px solid var(--line-soft);}
+  .metrics-table th, .metrics-table td{padding:9px 16px; text-align:left; font-weight:400;}
+  .metrics-table th{color:var(--ink-soft);}
+  .metrics-table td{text-align:right; font-family:'IBM Plex Mono', monospace; font-weight:500;}
   .index-list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:2px;}
   .index-list li{border-bottom:1px solid var(--line-soft);}
   .index-list a{
@@ -106,8 +160,8 @@ ${headMeta}
   .index-list a:hover{color:var(--spruce-deep);}
   .index-name{font-weight:600;}
   .index-country{font-size:0.8rem; color:var(--ink-soft); font-weight:400;}
-  .index-right{display:flex; align-items:center; gap:10px;}
-  .index-date{font-size:0.76rem; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
+  .index-right{display:flex; flex-direction:column; align-items:flex-end; gap:4px;}
+  .index-meta{font-size:0.74rem; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
   .empty-note{color:var(--ink-soft); font-size:0.92rem; padding:20px 0;}
   .debug-block{background:var(--paper-raised); border:1px solid var(--line); border-radius:10px; padding:16px 18px; box-shadow:var(--shadow); margin-block-end:18px;}
   .debug-block h2{font-size:0.95rem; margin-block-end:10px;}
@@ -142,7 +196,7 @@ function buildAnalysisPages(data, analysesData, { siteUrl } = {}) {
     <p class="sub">Analyser av nordiska bankaktier. Täcker värdering, prognoser och makroläge per land.</p>
   </header>
   ${indexRows.length ? `<ul class="index-list">
-    ${indexRows.map((a) => `<li><a href="./${esc(a.id)}.html"><span class="index-name">${COUNTRY_FLAG[a.stock.country] || ''} ${esc(a.stock.name)} <span class="index-country">${esc(COUNTRY_LABEL[a.stock.country] || a.stock.country)}</span></span><span class="index-right"><span class="index-date">${a.generatedAt ? esc(a.generatedAt.slice(0, 10)) : ''}</span><span class="verdict-badge ${VERDICT_CLASS[a.verdict] || 'verdict-neutral'}">${esc(VERDICT_LABEL[a.verdict] || a.verdict)}</span></span></a></li>`).join('\n    ')}
+    ${indexRows.map((a) => `<li><a href="./${esc(a.id)}.html"><span class="index-name">${COUNTRY_FLAG[a.stock.country] || ''} ${esc(a.stock.name)} <span class="index-country">${esc(COUNTRY_LABEL[a.stock.country] || a.stock.country)}</span></span><span class="index-right"><span class="verdict-badge ${VERDICT_CLASS[a.verdict] || 'verdict-neutral'}">${esc(VERDICT_LABEL[a.verdict] || a.verdict)}</span><span class="index-meta">${a.priceAtAnalysis != null ? esc(fmtPrice(a.priceAtAnalysis, a.currency)) + ' &middot; ' : ''}${a.generatedAt ? esc(a.generatedAt.slice(0, 10)) : ''}</span></span></a></li>`).join('\n    ')}
   </ul>` : `<p class="empty-note">Inga analyser genererade ännu.</p>`}
   <p class="disclaimer">Analyserna är inte investeringsrådgivning och kan innehålla felaktigheter — verifiera alltid själv innan du fattar investeringsbeslut.</p>
   <p class="breadcrumb" style="margin-top:24px;"><a href="../">&larr; Tillbaka till tabellen</a></p>
@@ -173,6 +227,8 @@ function buildAnalysisPages(data, analysesData, { siteUrl } = {}) {
   <article>
     ${renderParagraphs(a.text)}
   </article>
+  <h2 class="metrics-heading">Nyckeltal</h2>
+  ${renderMetricsTable(stock)}
   <p class="disclaimer">Den här analysen är inte investeringsrådgivning och kan innehålla felaktigheter — verifiera alltid själv innan du fattar investeringsbeslut.</p>
 `;
     pages[`analys/${id}.html`] = pageShell({

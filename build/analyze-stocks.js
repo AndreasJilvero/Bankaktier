@@ -69,8 +69,14 @@ function formatPeerLine(peer) {
 
 function buildPrompt(stock, peers, previous) {
   const countryName = COUNTRY_NAME[stock.country] || stock.country;
+  // The previous analysis is given as PRIVATE context only, to help the model calibrate
+  // (e.g. notice drift or confirm a thesis still holds) — never as something the output
+  // text may reference. There is no page anywhere that shows a reader the previous
+  // analysis or verdict, so a line like "sedan förra analysen har..." makes no sense to a
+  // reader and reads as broken. The new text must stand alone as if it's the only analysis
+  // this stock has ever had.
   const previousBlock = previous
-    ? `\nFöregående analys (${previous.generatedAt.slice(0, 10)}) gav betyget ${previous.verdict}. Här är den analysen i sin helhet:\n"${previous.text}"\n\nJämför med det nuvarande läget och nämn i den nya analysen om och i så fall hur bilden har förändrats sedan dess (t.ex. "sedan förra analysen har..." eller om betyget ändras, varför). Om inget väsentligt förändrats är det också värt att säga det kort.\n`
+    ? `\n[Intern bakgrundsinfo, ej för läsaren — använd bara för att kalibrera din egen bedömning] Vid en tidigare intern bedömning (${previous.generatedAt.slice(0, 10)}) blev betyget ${previous.verdict}, med följande resonemang:\n"${previous.text}"\nDetta är bara referens för dig; ingen läsare har sett det. Skriv den nya analysen som ett helt fristående, självständigt dokument — nämn ALDRIG att det finns en tidigare analys, jämför inte explicit med den, och skriv inte fraser som "sedan förra analysen", "tidigare bedömning" eller liknande. Använd i stället bara den tidigare bedömningen för att göra din nya, fristående analys mer konsekvent och välkalibrerad om inget väsentligt förändrats.\n`
     : '';
   return `Du analyserar bankaktien ${stock.fullName} (${stock.name}), noterad i ${countryName} (${stock.yahoo}), för en investerare som överväger att lägga till den i sin portfölj.
 ${previousBlock}
@@ -90,14 +96,14 @@ Nuvarande nyckeltal (hämtade vid byggtillfället, ${new Date().toISOString().sl
 Jämförbara nordiska bankaktier (samma källa, samma tidpunkt):
 ${peers.map((p) => `- ${formatPeerLine(p)}`).join('\n')}
 
-Använd webbsökning för att ta reda på det senaste kring bolaget (senaste kvartalsrapport, analytikerkommentarer) och makroläget i ${countryName} (styrränta, inflation, bostadsmarknad, tillväxtutsikter) i den mån det påverkar banksektorn där.
+Använd webbsökning för att ta reda på det senaste kring bolaget (senaste kvartalsrapport, analytikerkommentarer) och makroläget i ${countryName} (styrränta, inflation, bostadsmarknad, tillväxtutsikter, samt politiska/regulatoriska faktorer som bankskatter, ny bankreglering, politisk stabilitet och kommande val som kan påverka banksektorn) i den mån det påverkar banksektorn där.
 
 Skriv en analys på svenska, 5-10 meningar, som täcker:
 1. Nuvarande värdering jämfört med de nordiska konkurrenterna ovan — är aktien billigare eller dyrare än sektorn givet dess lönsamhet (ROE, marginaler), inte bara i absoluta tal
 2. Prognoser och förväntad utveckling (analytikerkonsensus, vinsttillväxt)
-3. Makroläget i ${countryName} på nationell nivå och hur det påverkar bankens affär
+3. Makroläget i ${countryName} på nationell nivå och hur det påverkar bankens affär, inklusive politiska/regulatoriska faktorer där relevant (t.ex. bankskatter, ny reglering, politisk risk)
 
-Avsluta analysen med en tydlig sammanfattande mening om huvudargumentet för eller emot aktien. Skriv rakt och konkret, undvik disclaimers och floskler.
+Avsluta analysen med en tydlig sammanfattande mening om huvudargumentet för eller emot aktien. Skriv rakt och konkret, undvik disclaimers och floskler. Skriv analysen som om det vore den allra första och enda analysen som någonsin gjorts av aktien — nämn aldrig tidigare analyser, bedömningar eller att betyget har ändrats eller kvarstår sedan förut.
 
 Svara ENDAST med ett JSON-objekt på formen {"analysis": "...", "verdict": "Buy" | "Neutral" | "Sell"} — ingen markdown, ingen kodblocksmarkering, ingen extra text före eller efter.`;
 }
@@ -179,17 +185,30 @@ async function main() {
   // on top of that, one random already-analyzed stock is refreshed, so every stock's
   // analysis still gets refreshed roughly every ~25 nights (about a month) without ever
   // bursting to a full-batch cost on a single night.
+  //
+  // ANALYZE_ALL=1 overrides this and analyzes every stock in one run. This is a manual,
+  // one-time escape hatch (e.g. `ANALYZE_ALL=1 node build/analyze-stocks.js`) — it is NOT
+  // wired into the nightly workflow, specifically because an "always analyze everything"
+  // default is what caused the 2026-09-13 cost incident this file's other safeguards exist
+  // to prevent. Use it deliberately, not as a standing setting.
+  const analyzeAll = process.env.ANALYZE_ALL === '1';
   const neverAnalyzed = data.stocks.filter((s) => !analyses[s.id]);
   const alreadyAnalyzed = data.stocks.filter((s) => analyses[s.id]);
-  const randomRefresh = alreadyAnalyzed.length
-    ? [alreadyAnalyzed[Math.floor(Math.random() * alreadyAnalyzed.length)]]
-    : [];
-  const stocksToAnalyze = [...neverAnalyzed, ...randomRefresh];
-  if (stocksToAnalyze.length === 0) {
-    console.log('No stocks to analyze tonight — skipping LLM analysis run.');
-    return;
+  let stocksToAnalyze;
+  if (analyzeAll) {
+    stocksToAnalyze = data.stocks;
+    console.log(`ANALYZE_ALL=1 — analyzing all ${stocksToAnalyze.length} stocks in this run.`);
+  } else {
+    const randomRefresh = alreadyAnalyzed.length
+      ? [alreadyAnalyzed[Math.floor(Math.random() * alreadyAnalyzed.length)]]
+      : [];
+    stocksToAnalyze = [...neverAnalyzed, ...randomRefresh];
+    if (stocksToAnalyze.length === 0) {
+      console.log('No stocks to analyze tonight — skipping LLM analysis run.');
+      return;
+    }
+    console.log(`Analyzing ${neverAnalyzed.length} never-analyzed stock(s)${randomRefresh.length ? ` + 1 random refresh (${randomRefresh[0].name})` : ''}.`);
   }
-  console.log(`Analyzing ${neverAnalyzed.length} never-analyzed stock(s)${randomRefresh.length ? ` + 1 random refresh (${randomRefresh[0].name})` : ''}.`);
 
   // Circuit breaker: if the first few stocks all fail, stop instead of repeating the
   // same (potentially expensive) mistake across all 25 — e.g. a bad request shape or a
