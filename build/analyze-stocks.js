@@ -81,7 +81,7 @@ function buildPrompt(stock, peers, previous) {
   return `Du analyserar bankaktien ${stock.fullName} (${stock.name}), noterad i ${countryName} (${stock.yahoo}), för en investerare som överväger att lägga till den i sin portfölj.
 ${previousBlock}
 
-Nuvarande nyckeltal (hämtade vid byggtillfället, ${new Date().toISOString().slice(0, 10)}):
+Nuvarande nyckeltal (från Yahoo Finance, hämtade vid byggtillfället ${new Date().toISOString().slice(0, 10)} — Yahoos data för bankers marginaler/ROE bygger på en generisk mall som inte alltid stämmer väl överens med hur banker faktiskt rapporterar, så dessa siffror kan vara missvisande):
 - Kurs: ${stock.price} ${stock.currency} (idag ${stock.changeToday > 0 ? '+' : ''}${stock.changeToday}%, 3 mån ${stock.change3m}%, 12 mån ${stock.change12m}%)
 - Börsvärde: ${(stock.marketCap / 1e9).toFixed(1)} miljarder ${stock.currency}
 - P/E (historiskt): ${fmtMetric(stock.trailingPE)}, P/E (prognos): ${fmtMetric(stock.forwardPE)}
@@ -96,7 +96,7 @@ Nuvarande nyckeltal (hämtade vid byggtillfället, ${new Date().toISOString().sl
 Jämförbara nordiska bankaktier (samma källa, samma tidpunkt):
 ${peers.map((p) => `- ${formatPeerLine(p)}`).join('\n')}
 
-Använd webbsökning för att ta reda på det senaste kring bolaget (senaste kvartalsrapport, analytikerkommentarer) och makroläget i ${countryName} (styrränta, inflation, bostadsmarknad, tillväxtutsikter, samt politiska/regulatoriska faktorer som bankskatter, ny bankreglering, politisk stabilitet och kommande val som kan påverka banksektorn) i den mån det påverkar banksektorn där.
+Använd webbsökning för att ta reda på det senaste kring bolaget (senaste kvartalsrapport, analytikerkommentarer) och makroläget i ${countryName} (styrränta, inflation, bostadsmarknad, tillväxtutsikter, samt politiska/regulatoriska faktorer som bankskatter, ny bankreglering, politisk stabilitet och kommande val som kan påverka banksektorn) i den mån det påverkar banksektorn där. Kontrollera samtidigt bankens egna rapporterade ROE och K/I-tal (kostnad/intäkt) från senaste kvartalsrapporten eller bokslutskommunikén — om dessa avviker väsentligt (mer än några procentenheter) från Yahoo-siffrorna ovan, använd och nämn de bankrapporterade siffrorna istället i din analys, och notera kort att Yahoos siffra avvek.
 
 Skriv en analys på svenska, 5-10 meningar, som täcker:
 1. Nuvarande värdering jämfört med de nordiska konkurrenterna ovan — är aktien billigare eller dyrare än sektorn givet dess lönsamhet (ROE, marginaler), inte bara i absoluta tal
