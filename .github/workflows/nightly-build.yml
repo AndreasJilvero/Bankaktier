@@ -4,7 +4,12 @@ on:
   schedule:
     # 02:15 UTC ≈ after Stockholm exchange close and Yahoo's end-of-day data settles
     - cron: '15 2 * * *'
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      analyze_all:
+        description: 'Force a full re-analysis of every stock (normally only one random stock + any never-analyzed ones are analyzed per run)'
+        type: boolean
+        default: false
   push:
     branches: [master]
 
@@ -41,6 +46,7 @@ jobs:
         env:
           SITE_URL: ${{ vars.SITE_URL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ANALYZE_ALL: ${{ github.event.inputs.analyze_all == 'true' && '1' || '' }}
         run: npm run build
 
       - name: Commit updated data
