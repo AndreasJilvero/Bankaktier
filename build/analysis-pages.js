@@ -78,7 +78,71 @@ function renderParagraphs(text) {
     .join('\n');
 }
 
-function pageShell({ title, description, siteUrl, bodyHtml, canonicalPath, noindex }) {
+// Shared header for every page this module renders (the /analys/ index and each
+// per-stock page) — mirrors the main table page's masthead so visitors can navigate back
+// to the table and see the same live index snapshot from wherever they are, matching
+// build/app.html's markup/IDs closely enough to reuse its Yahoo-proxy live-fetch pattern.
+function siteHeader(active) {
+  return `<header class="site-header">
+    <a class="brand" href="../">Bankaktier Norden</a>
+    <nav class="site-nav">
+      <a href="../"${active === 'table' ? ' class="active"' : ''}>Tabellen</a>
+      <a href="./"${active === 'analyses' ? ' class="active"' : ''}>Analyser</a>
+    </nav>
+  </header>
+  <section class="site-banner" id="siteBanner">
+    <div class="banner-tile">
+      <span class="banner-label">OMXS30 idag</span>
+      <span class="banner-value num" id="bannerOmx">—</span>
+    </div>
+    <div class="banner-tile">
+      <span class="banner-label">OMX Stockholm Banks GI idag</span>
+      <span class="banner-value num" id="bannerBanks">—</span>
+    </div>
+  </section>`;
+}
+
+// Minimal, self-contained port of app.html's live index-banner fetch (same Cloudflare
+// Worker proxy, same Yahoo symbols) — kept deliberately small since these are otherwise
+// fully static pages with no other client-side JS.
+const SITE_BANNER_SCRIPT = `<script>
+(function(){
+  var YAHOO_PROXY_URL = 'https://bankaktier-yahoo-proxy.suboptimalprime.workers.dev';
+  function isArtifactSandbox(){
+    return /\\.claude(usercontent)?\\.(ai|com)$/i.test(location.hostname) || location.hostname === 'claude.site';
+  }
+  function fetchYahooQuote(symbol){
+    var url = YAHOO_PROXY_URL + '/?symbol=' + encodeURIComponent(symbol);
+    return fetch(url, { cache: 'no-store' }).then(function(r){
+      if (!r.ok) throw new Error('proxy returned ' + r.status);
+      return r.json();
+    }).then(function(data){
+      if (data.error || typeof data.price !== 'number') throw new Error(data.error || 'no price');
+      return data;
+    });
+  }
+  function fmtPct(v){
+    if (v === null || v === undefined || Number.isNaN(v)) return '—';
+    var s = Math.round(v * 100) / 100;
+    return (s > 0 ? '+' : '') + s.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+  }
+  function pctClass(v){ return v > 0 ? 'up' : (v < 0 ? 'down' : ''); }
+  if (isArtifactSandbox()) return;
+  var omxEl = document.getElementById('bannerOmx');
+  var banksEl = document.getElementById('bannerBanks');
+  if (!omxEl || !banksEl) return;
+  fetchYahooQuote('^OMX').then(function(d){
+    omxEl.textContent = fmtPct(d.changePercent);
+    omxEl.className = 'banner-value num ' + pctClass(d.changePercent);
+  }).catch(function(){});
+  fetchYahooQuote('^SX3010GI').then(function(d){
+    banksEl.textContent = fmtPct(d.changePercent);
+    banksEl.className = 'banner-value num ' + pctClass(d.changePercent);
+  }).catch(function(){});
+})();
+</script>`;
+
+function pageShell({ title, description, siteUrl, bodyHtml, canonicalPath, noindex, active }) {
   const canonical = !noindex && siteUrl ? `<link rel="canonical" href="${esc(siteUrl.replace(/\/+$/, ''))}${canonicalPath}">` : '';
   const headMeta = noindex
     ? `<meta name="robots" content="noindex, nofollow">`
@@ -128,6 +192,23 @@ ${headMeta}
   a{color:var(--spruce-deep);}
   .breadcrumb{font-size:0.82rem; color:var(--ink-soft); margin-block-end:18px;}
   .breadcrumb a{color:var(--ink-soft); text-decoration:underline;}
+  header.site-header{
+    display:flex; flex-wrap:wrap; gap:12px 24px; align-items:center; justify-content:space-between;
+    padding-block-end:12px; margin-block-end:16px; border-bottom:2px solid var(--ink);
+  }
+  .site-header .brand{font-family:'Source Serif 4', Georgia, serif; font-weight:700; font-size:1.15rem; text-decoration:none; color:var(--ink);}
+  .site-nav{display:flex; gap:16px; font-size:0.86rem; font-weight:600;}
+  .site-nav a{color:var(--ink-soft); text-decoration:none;}
+  .site-nav a.active, .site-nav a:hover{color:var(--spruce-deep);}
+  .site-banner{display:flex; gap:10px; flex-wrap:wrap; margin-block-end:18px;}
+  .site-banner .banner-tile{
+    flex:1 1 160px; display:flex; flex-direction:column; gap:3px; padding:9px 14px;
+    background:var(--paper-raised); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow);
+  }
+  .site-banner .banner-label{font-size:0.68rem; letter-spacing:0.04em; text-transform:uppercase; color:var(--ink-soft);}
+  .site-banner .banner-value{font-size:1.05rem; font-weight:600; font-family:'IBM Plex Mono', monospace;}
+  .site-banner .banner-value.up{color:var(--gain);}
+  .site-banner .banner-value.down{color:var(--loss);}
   header.page-head{border-bottom:2px solid var(--ink); padding-block-end:16px; margin-block-end:20px;}
   header.page-head h1{font-size:clamp(1.5rem, 1.2rem + 1.4vw, 2rem); font-weight:700; line-height:1.15;}
   .page-head .sub{margin:8px 0 0; color:var(--ink-soft); font-size:0.92rem;}
@@ -171,8 +252,10 @@ ${headMeta}
 </head>
 <body>
 <div class="wrap">
+${siteHeader(active)}
 ${bodyHtml}
 </div>
+${SITE_BANNER_SCRIPT}
 </body>
 </html>
 `;
@@ -199,7 +282,6 @@ function buildAnalysisPages(data, analysesData, { siteUrl } = {}) {
     ${indexRows.map((a) => `<li><a href="./${esc(a.id)}.html"><span class="index-name">${COUNTRY_FLAG[a.stock.country] || ''} ${esc(a.stock.name)} <span class="index-country">${esc(COUNTRY_LABEL[a.stock.country] || a.stock.country)}</span></span><span class="index-right"><span class="verdict-badge ${VERDICT_CLASS[a.verdict] || 'verdict-neutral'}">${esc(VERDICT_LABEL[a.verdict] || a.verdict)}</span><span class="index-meta">${a.priceAtAnalysis != null ? esc(fmtPrice(a.priceAtAnalysis, a.currency)) + ' &middot; ' : ''}${a.generatedAt ? esc(a.generatedAt.slice(0, 10)) : ''}</span></span></a></li>`).join('\n    ')}
   </ul>` : `<p class="empty-note">Inga analyser genererade ännu.</p>`}
   <p class="disclaimer">Analyserna är inte investeringsrådgivning och kan innehålla felaktigheter — verifiera alltid själv innan du fattar investeringsbeslut.</p>
-  <p class="breadcrumb" style="margin-top:24px;"><a href="../">&larr; Tillbaka till tabellen</a></p>
 `;
 
   pages['analys/index.html'] = pageShell({
@@ -208,6 +290,7 @@ function buildAnalysisPages(data, analysesData, { siteUrl } = {}) {
     siteUrl,
     canonicalPath: '/analys/',
     bodyHtml: indexBody,
+    active: 'analyses',
   });
 
   // Per-stock pages
@@ -237,6 +320,7 @@ function buildAnalysisPages(data, analysesData, { siteUrl } = {}) {
       siteUrl,
       canonicalPath: `/analys/${id}.html`,
       bodyHtml: body,
+      active: 'analyses',
     });
 
     // Hidden debug page: not linked from anywhere, excluded from the sitemap (see
