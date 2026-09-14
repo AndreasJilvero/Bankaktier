@@ -67,9 +67,13 @@ function formatPeerLine(peer) {
   return `${peer.name} (${COUNTRY_NAME[peer.country] || peer.country}): P/E ${fmtMetric(peer.trailingPE)}, P/B ${fmtMetric(peer.priceToBook)}, ROE ${fmtMetric(peer.returnOnEquity, '%')}`;
 }
 
-function buildPrompt(stock, peers) {
+function buildPrompt(stock, peers, previous) {
   const countryName = COUNTRY_NAME[stock.country] || stock.country;
+  const previousBlock = previous
+    ? `\nFöregående analys (${previous.generatedAt.slice(0, 10)}) gav betyget ${previous.verdict}. Här är den analysen i sin helhet:\n"${previous.text}"\n\nJämför med det nuvarande läget och nämn i den nya analysen om och i så fall hur bilden har förändrats sedan dess (t.ex. "sedan förra analysen har..." eller om betyget ändras, varför). Om inget väsentligt förändrats är det också värt att säga det kort.\n`
+    : '';
   return `Du analyserar bankaktien ${stock.fullName} (${stock.name}), noterad i ${countryName} (${stock.yahoo}), för en investerare som överväger att lägga till den i sin portfölj.
+${previousBlock}
 
 Nuvarande nyckeltal (hämtade vid byggtillfället, ${new Date().toISOString().slice(0, 10)}):
 - Kurs: ${stock.price} ${stock.currency} (idag ${stock.changeToday > 0 ? '+' : ''}${stock.changeToday}%, 3 mån ${stock.change3m}%, 12 mån ${stock.change12m}%)
@@ -113,10 +117,11 @@ function extractJson(text) {
   return JSON.parse(candidate.slice(start, end + 1));
 }
 
-async function analyzeStock(ai, stock, peers) {
+async function analyzeStock(ai, stock, peers, previous) {
+  const prompt = buildPrompt(stock, peers, previous);
   const response = await ai.models.generateContent({
     model: MODEL,
-    contents: buildPrompt(stock, peers),
+    contents: prompt,
     config: {
       tools: [{ googleSearch: {} }],
       maxOutputTokens: 8000,
@@ -137,6 +142,9 @@ async function analyzeStock(ai, stock, peers) {
   return {
     verdict: parsed.verdict,
     text: parsed.analysis.trim(),
+    prompt,
+    rawResponse: text,
+    model: MODEL,
     tokens: {
       input: usage.promptTokenCount || 0,
       output: (usage.candidatesTokenCount || 0) + (usage.thoughtsTokenCount || 0),
@@ -165,18 +173,23 @@ async function main() {
   const analyses = { ...existing.analyses };
 
   // Analysis (with web search + grounding) is the most expensive part of the nightly
-  // build, and valuations/macro context don't meaningfully change day to day — so only
-  // re-run it once a week (Sunday), except for a stock with no analysis yet at all, which
-  // always gets one immediately rather than waiting up to a week for its first verdict.
-  const isSunday = new Date().getUTCDay() === 0;
-  const stocksToAnalyze = data.stocks.filter((s) => isSunday || !analyses[s.id]);
-  if (!isSunday && stocksToAnalyze.length === 0) {
-    console.log('Not Sunday and every stock already has an analysis — skipping LLM analysis run.');
+  // build, and valuations/macro context don't meaningfully change day to day — so instead
+  // of re-running all 25 stocks every night, each night: (a) any stock with no analysis
+  // yet at all gets one immediately, so the site is never missing data for long, and (b)
+  // on top of that, one random already-analyzed stock is refreshed, so every stock's
+  // analysis still gets refreshed roughly every ~25 nights (about a month) without ever
+  // bursting to a full-batch cost on a single night.
+  const neverAnalyzed = data.stocks.filter((s) => !analyses[s.id]);
+  const alreadyAnalyzed = data.stocks.filter((s) => analyses[s.id]);
+  const randomRefresh = alreadyAnalyzed.length
+    ? [alreadyAnalyzed[Math.floor(Math.random() * alreadyAnalyzed.length)]]
+    : [];
+  const stocksToAnalyze = [...neverAnalyzed, ...randomRefresh];
+  if (stocksToAnalyze.length === 0) {
+    console.log('No stocks to analyze tonight — skipping LLM analysis run.');
     return;
   }
-  if (!isSunday) {
-    console.log(`Not Sunday — only analyzing ${stocksToAnalyze.length} stock(s) with no existing analysis.`);
-  }
+  console.log(`Analyzing ${neverAnalyzed.length} never-analyzed stock(s)${randomRefresh.length ? ` + 1 random refresh (${randomRefresh[0].name})` : ''}.`);
 
   // Circuit breaker: if the first few stocks all fail, stop instead of repeating the
   // same (potentially expensive) mistake across all 25 — e.g. a bad request shape or a
@@ -193,13 +206,21 @@ async function main() {
     process.stdout.write(`Analyzing ${stock.name}... `);
     try {
       const peers = selectPeers(stock, data.stocks);
-      const result = await analyzeStock(ai, stock, peers);
+      const previous = analyses[stock.id];
+      const result = await analyzeStock(ai, stock, peers, previous);
       analyses[stock.id] = {
         name: stock.name,
         country: stock.country,
         verdict: result.verdict,
         text: result.text,
         generatedAt: new Date().toISOString(),
+        priceAtAnalysis: stock.price,
+        currency: stock.currency,
+        debug: {
+          model: result.model,
+          prompt: result.prompt,
+          rawResponse: result.rawResponse,
+        },
       };
       totalTokensUsed += result.tokens.input + result.tokens.output;
       console.log(`${result.verdict} (${result.tokens.input.toLocaleString()} in / ${result.tokens.output.toLocaleString()} out, running total ${totalTokensUsed.toLocaleString()})`);

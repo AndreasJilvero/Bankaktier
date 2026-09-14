@@ -14,6 +14,11 @@ function esc(str) {
   return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+function fmtPrice(v, currency) {
+  if (v == null) return '';
+  return v.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + (currency ? ` ${currency}` : '');
+}
+
 // Analysis text is plain prose from the LLM (Swedish, no markdown expected) — split
 // into paragraphs on blank lines and escape, rather than trusting it as pre-formed HTML.
 function renderParagraphs(text) {
@@ -25,8 +30,16 @@ function renderParagraphs(text) {
     .join('\n');
 }
 
-function pageShell({ title, description, siteUrl, bodyHtml, canonicalPath }) {
-  const canonical = siteUrl ? `<link rel="canonical" href="${esc(siteUrl.replace(/\/+$/, ''))}${canonicalPath}">` : '';
+function pageShell({ title, description, siteUrl, bodyHtml, canonicalPath, noindex }) {
+  const canonical = !noindex && siteUrl ? `<link rel="canonical" href="${esc(siteUrl.replace(/\/+$/, ''))}${canonicalPath}">` : '';
+  const headMeta = noindex
+    ? `<meta name="robots" content="noindex, nofollow">`
+    : `${canonical}
+<meta name="robots" content="index, follow">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Bankaktier Norden">
+<meta property="og:title" content="${esc(title)}">
+<meta property="og:description" content="${esc(description)}">`;
   return `<!doctype html>
 <html lang="sv">
 <head>
@@ -34,12 +47,7 @@ function pageShell({ title, description, siteUrl, bodyHtml, canonicalPath }) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(description)}">
-${canonical}
-<meta name="robots" content="index, follow">
-<meta property="og:type" content="article">
-<meta property="og:site_name" content="Bankaktier Norden">
-<meta property="og:title" content="${esc(title)}">
-<meta property="og:description" content="${esc(description)}">
+${headMeta}
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -83,6 +91,7 @@ ${canonical}
   .verdict-neutral{background:var(--neutral-wash); color:var(--neutral);}
   .verdict-sell{background:var(--loss-wash); color:var(--loss);}
   .analyzed-stamp{margin:8px 0 0; font-size:0.78rem; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
+  .price-at-analysis{display:block; margin-block-start:10px; font-size:0.85rem; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
   article{background:var(--paper-raised); border:1px solid var(--line); border-radius:10px; padding:22px 26px; box-shadow:var(--shadow); font-size:1rem; line-height:1.7;}
   article p{margin:0 0 14px;}
   article p:last-child{margin-bottom:0;}
@@ -100,6 +109,9 @@ ${canonical}
   .index-right{display:flex; align-items:center; gap:10px;}
   .index-date{font-size:0.76rem; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
   .empty-note{color:var(--ink-soft); font-size:0.92rem; padding:20px 0;}
+  .debug-block{background:var(--paper-raised); border:1px solid var(--line); border-radius:10px; padding:16px 18px; box-shadow:var(--shadow); margin-block-end:18px;}
+  .debug-block h2{font-size:0.95rem; margin-block-end:10px;}
+  .debug-block pre{white-space:pre-wrap; word-break:break-word; font-family:'IBM Plex Mono', monospace; font-size:0.82rem; line-height:1.55; margin:0; color:var(--ink);}
   :focus-visible{outline:2px solid var(--spruce); outline-offset:2px;}
 </style>
 </head>
@@ -122,23 +134,23 @@ function buildAnalysisPages(data, analysesData, { siteUrl } = {}) {
   const indexRows = Object.entries(analyses)
     .map(([id, a]) => ({ id, ...a, stock: stocksById[id] }))
     .filter((a) => a.stock)
-    .sort((a, b) => (b.stock.marketCap || 0) - (a.stock.marketCap || 0));
+    .sort((a, b) => a.stock.name.localeCompare(b.stock.name, 'sv'));
 
   const indexBody = `
   <header class="page-head">
     <h1>Aktieanalyser</h1>
-    <p class="sub">AI-genererade analyser av nordiska bankaktier, uppdaterade varje söndag. Täcker värdering, prognoser och makroläge per land.</p>
+    <p class="sub">Analyser av nordiska bankaktier. Täcker värdering, prognoser och makroläge per land.</p>
   </header>
   ${indexRows.length ? `<ul class="index-list">
     ${indexRows.map((a) => `<li><a href="./${esc(a.id)}.html"><span class="index-name">${COUNTRY_FLAG[a.stock.country] || ''} ${esc(a.stock.name)} <span class="index-country">${esc(COUNTRY_LABEL[a.stock.country] || a.stock.country)}</span></span><span class="index-right"><span class="index-date">${a.generatedAt ? esc(a.generatedAt.slice(0, 10)) : ''}</span><span class="verdict-badge ${VERDICT_CLASS[a.verdict] || 'verdict-neutral'}">${esc(VERDICT_LABEL[a.verdict] || a.verdict)}</span></span></a></li>`).join('\n    ')}
   </ul>` : `<p class="empty-note">Inga analyser genererade ännu.</p>`}
-  <p class="disclaimer">Analyserna skapas automatiskt av en AI-modell (Gemini) baserat på nyckeltal och webbsökning, och uppdateras varje söndag. De är inte investeringsrådgivning och kan innehålla felaktigheter — verifiera alltid själv innan du fattar investeringsbeslut.</p>
+  <p class="disclaimer">Analyserna är inte investeringsrådgivning och kan innehålla felaktigheter — verifiera alltid själv innan du fattar investeringsbeslut.</p>
   <p class="breadcrumb" style="margin-top:24px;"><a href="../">&larr; Tillbaka till tabellen</a></p>
 `;
 
   pages['analys/index.html'] = pageShell({
     title: 'Aktieanalyser — Bankaktier Norden',
-    description: 'AI-genererade analyser av nordiska bankaktier: värdering, prognoser och makroläge, uppdaterade varje natt.',
+    description: 'Analyser av nordiska bankaktier: värdering, prognoser och makroläge.',
     siteUrl,
     canonicalPath: '/analys/',
     bodyHtml: indexBody,
@@ -148,7 +160,6 @@ function buildAnalysisPages(data, analysesData, { siteUrl } = {}) {
   for (const [id, a] of Object.entries(analyses)) {
     const stock = stocksById[id];
     if (!stock) continue;
-    const generated = a.generatedAt ? new Date(a.generatedAt).toLocaleString('sv-SE', { dateStyle: 'medium', timeStyle: 'short' }) : '';
     const analyzedDate = a.generatedAt ? a.generatedAt.slice(0, 10) : '';
     const body = `
   <p class="breadcrumb"><a href="../">Bankaktier Norden</a> &rsaquo; <a href="./">Analyser</a> &rsaquo; ${esc(stock.name)}</p>
@@ -156,13 +167,13 @@ function buildAnalysisPages(data, analysesData, { siteUrl } = {}) {
     <h1>${COUNTRY_FLAG[stock.country] || ''} ${esc(stock.name)}</h1>
     <p class="sub">${esc(stock.fullName)} &middot; ${esc(COUNTRY_LABEL[stock.country] || stock.country)}</p>
     <span class="verdict-badge ${VERDICT_CLASS[a.verdict] || 'verdict-neutral'}">${esc(VERDICT_LABEL[a.verdict] || a.verdict)}</span>
+    ${a.priceAtAnalysis != null ? `<span class="price-at-analysis">Kurs vid analys: ${esc(fmtPrice(a.priceAtAnalysis, a.currency))}</span>` : ''}
     ${analyzedDate ? `<p class="analyzed-stamp">Analyserad ${esc(analyzedDate)}</p>` : ''}
   </header>
   <article>
     ${renderParagraphs(a.text)}
   </article>
-  <p class="meta">${generated ? `Genererad ${esc(generated)} av Gemini (Google), med webbsökning.` : ''}</p>
-  <p class="disclaimer">Den här analysen är automatiskt skapad av en AI-modell och är inte investeringsrådgivning. Nyckeltal och webbresultat kan vara föråldrade eller felaktiga — verifiera alltid själv innan du fattar investeringsbeslut.</p>
+  <p class="disclaimer">Den här analysen är inte investeringsrådgivning och kan innehålla felaktigheter — verifiera alltid själv innan du fattar investeringsbeslut.</p>
 `;
     pages[`analys/${id}.html`] = pageShell({
       title: `${stock.name} — analys och riktkurs`,
@@ -171,6 +182,34 @@ function buildAnalysisPages(data, analysesData, { siteUrl } = {}) {
       canonicalPath: `/analys/${id}.html`,
       bodyHtml: body,
     });
+
+    // Hidden debug page: not linked from anywhere, excluded from the sitemap (see
+    // build-site.js) and marked noindex — shows the raw prompt sent to the model and its
+    // raw response, for checking what actually produced a given verdict.
+    if (a.debug) {
+      const debugBody = `
+  <header class="page-head">
+    <h1>${esc(stock.name)} — LLM-indata</h1>
+    <p class="sub">${analyzedDate ? `Analyserad ${esc(analyzedDate)}` : ''}${a.debug.model ? ` &middot; ${esc(a.debug.model)}` : ''}</p>
+  </header>
+  <div class="debug-block">
+    <h2>Prompt</h2>
+    <pre>${esc(a.debug.prompt || '')}</pre>
+  </div>
+  <div class="debug-block">
+    <h2>Rått svar</h2>
+    <pre>${esc(a.debug.rawResponse || '')}</pre>
+  </div>
+`;
+      pages[`analys/${id}-ai.html`] = pageShell({
+        title: `${stock.name} — LLM-indata`,
+        description: '',
+        siteUrl,
+        canonicalPath: `/analys/${id}-ai.html`,
+        bodyHtml: debugBody,
+        noindex: true,
+      });
+    }
   }
 
   return pages;

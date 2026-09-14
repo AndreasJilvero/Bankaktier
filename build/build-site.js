@@ -1,8 +1,8 @@
 // Orchestrates the full nightly build: fetch fresh prices/fundamentals, run the LLM
-// analysis pass (skipped gracefully if GEMINI_API_KEY isn't set; only actually analyzes
-// on Sundays, or for any stock with no analysis yet — see analyze-stocks.js), merge each
-// stock's verdict into data.json, then render the standalone site (main page + /analys/
-// pages).
+// analysis pass (skipped gracefully if GEMINI_API_KEY isn't set; each night analyzes any
+// stock with no analysis yet, plus one random already-analyzed stock as a refresh — see
+// analyze-stocks.js), merge each stock's verdict into data.json, then render the
+// standalone site (main page + /analys/ pages).
 //
 // fetch-data.js and analyze-stocks.js are run as separate processes (not required as
 // modules) because each calls process.exit() on completion/failure, which would kill
@@ -63,7 +63,11 @@ async function main() {
     `User-agent: *\nAllow: /\n${origin ? `\nSitemap: ${origin}/sitemap.xml\n` : ''}`
   );
   if (origin) {
+    // -ai.html debug pages (raw LLM prompt/response) are intentionally excluded from the
+    // sitemap — they're reachable by anyone who knows the URL, but not meant to be
+    // discovered or indexed.
     const analysisUrls = Object.keys(analysisPages)
+      .filter((relPath) => !relPath.endsWith('-ai.html'))
       .map((relPath) => `  <url>\n    <loc>${origin}/${relPath.replace(/index\.html$/, '')}</loc>\n    <lastmod>${data.generatedAt.slice(0, 10)}</lastmod>\n    <changefreq>daily</changefreq>\n  </url>`)
       .join('\n');
     fs.writeFileSync(
