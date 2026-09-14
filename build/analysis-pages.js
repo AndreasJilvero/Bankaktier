@@ -126,7 +126,7 @@ function siteHeader() {
     <a class="brand" href="../">Bankaktier Norden</a>
     <a class="site-nav-link" href="./">Alla analyser</a>
     <span class="site-index"><span class="site-index-label">OMXS30</span><span class="num" id="bannerOmx">—</span></span>
-    <span class="site-index"><span class="site-index-label">Bankindex</span><span class="num" id="bannerBanks">—</span></span>
+    <span class="site-index"><span class="site-index-label">OMX Stockholm Banks GI</span><span class="num" id="bannerBanks">—</span></span>
   </header>`;
 }
 
@@ -329,7 +329,7 @@ function buildAnalysisPages(data, analysesData, { siteUrl } = {}) {
   <p class="breadcrumb"><a href="../">Bankaktier Norden</a> &rsaquo; <a href="./">Analyser</a> &rsaquo; ${esc(stock.name)}</p>
   <header class="page-head">
     <h1>${COUNTRY_FLAG[stock.country] || ''} ${esc(stock.name)}</h1>
-    <p class="sub">${esc(stock.fullName)} &middot; ${esc(COUNTRY_LABEL[stock.country] || stock.country)}</p>
+    ${stock.fullName && stock.fullName !== stock.name ? `<p class="sub">${esc(stock.fullName)}</p>` : ''}
     <span class="verdict-badge ${VERDICT_CLASS[a.verdict] || 'verdict-neutral'}">${esc(VERDICT_LABEL[a.verdict] || a.verdict)}</span>
     ${a.priceAtAnalysis != null ? `<span class="price-at-analysis">Kurs vid analys: ${esc(fmtPrice(a.priceAtAnalysis, a.currency))}</span>` : ''}
     ${analyzedDate ? `<p class="analyzed-stamp">Analyserad ${esc(analyzedDate)}</p>` : ''}

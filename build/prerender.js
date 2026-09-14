@@ -49,7 +49,6 @@ function renderRow(s) {
             <th class="col-name" scope="row">
               <div class="name-cell">
                 <a class="name-link" href="${esc(s.analysisUrl || '#')}"><span>${COUNTRY_FLAG[s.country] || ''} ${esc(s.name)}</span></a>
-                <span class="full">${esc(s.fullName)}</span>
                 <span class="cat-pill ${esc(s.category)}">${esc(CAT_LABEL[s.category] || s.category)}</span>
               </div>
             </th>

@@ -192,7 +192,6 @@
   tbody td, tbody th{padding:10px 14px; text-align:right; vertical-align:middle;}
   tbody th.col-name{text-align:left; font-weight:600; font-family:'IBM Plex Sans';}
   .name-cell{display:flex; flex-direction:column; gap:2px;}
-  .name-cell .full{font-size:0.74rem; color:var(--ink-soft); font-weight:400;}
   .name-link{color:inherit; text-decoration:none;}
   .name-link:hover{color:var(--spruce-deep); text-decoration:underline;}
   .cat-pill{
@@ -253,7 +252,7 @@
     <a class="brand" href="./">Bankaktier Norden</a>
     <a class="site-nav-link" href="analys/">Alla analyser</a>
     <span class="site-index"><span class="site-index-label">OMXS30</span><span class="num" id="bannerOmx">—</span></span>
-    <span class="site-index"><span class="site-index-label">Bankindex</span><span class="num" id="bannerBanks">—</span></span>
+    <span class="site-index"><span class="site-index-label">OMX Stockholm Banks GI</span><span class="num" id="bannerBanks">—</span></span>
   </header>
 
   <div class="asof">
@@ -497,14 +496,10 @@
       var nameEl = document.createElement('span');
       nameEl.textContent = (COUNTRY_FLAG[s.country] || '') + ' ' + s.name;
       nameLink.appendChild(nameEl);
-      var fullEl = document.createElement('span');
-      fullEl.className = 'full';
-      fullEl.textContent = s.fullName;
       var pill = document.createElement('span');
       pill.className = 'cat-pill ' + s.category;
       pill.textContent = CAT_LABEL[s.category] || s.category;
       nameCell.appendChild(nameLink);
-      nameCell.appendChild(fullEl);
       nameCell.appendChild(pill);
       thName.appendChild(nameCell);
       tr.appendChild(thName);
