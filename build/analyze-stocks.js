@@ -81,6 +81,14 @@ Skriv en analys på svenska, 5-10 meningar, som täcker:
 Avsluta analysen med en tydlig sammanfattande mening om huvudargumentet för eller emot aktien. Skriv rakt och konkret, undvik disclaimers och floskler. Sätt sedan ett samlat betyg (Buy/Neutral/Sell) som sammanfattar helhetsbilden.`;
 }
 
+// Hard ceiling on pause_turn resumes per stock. This is a real safety limit, not a
+// tuning knob: on 2026-09-13 this loop had no cap at all, and a nightly run against
+// all 25 stocks ran for 52 minutes and burned through the account's funds before
+// ultimately failing -- almost certainly this exact loop failing to converge when
+// combining web_search with output_config.format. Each resume is a full paid API call
+// (with web search), so this bounds worst-case cost per stock, not just wall time.
+const MAX_TURN_RESUMES = 3;
+
 async function analyzeStock(client, stock, peers) {
   const params = {
     model: MODEL,
@@ -92,8 +100,13 @@ async function analyzeStock(client, stock, peers) {
 
   let response = await client.messages.parse(params);
   let messages = params.messages;
+  let resumes = 0;
   // Resume if a long tool-use turn paused before the model produced its final answer.
   while (response.stop_reason === 'pause_turn') {
+    resumes += 1;
+    if (resumes > MAX_TURN_RESUMES) {
+      throw new Error(`gave up after ${MAX_TURN_RESUMES} pause_turn resumes for ${stock.id} — refusing to keep calling the API`);
+    }
     messages = [...messages, { role: 'assistant', content: response.content }];
     response = await client.messages.parse({ ...params, messages });
   }
@@ -119,12 +132,21 @@ async function main() {
   }
 
   const data = JSON.parse(fs.readFileSync(path.join(__dirname, 'data.json'), 'utf8'));
-  const client = new Anthropic({ apiKey });
+  // 90s per HTTP request (not per stock — a stock can still take longer across
+  // pause_turn resumes, but each individual call is bounded so a single hung request
+  // can't stall the whole nightly job indefinitely).
+  const client = new Anthropic({ apiKey, timeout: 90 * 1000 });
 
   const existing = fs.existsSync(outputPath)
     ? JSON.parse(fs.readFileSync(outputPath, 'utf8'))
     : { generatedAt: null, analyses: {} };
   const analyses = { ...existing.analyses };
+
+  // Circuit breaker: if the first few stocks all fail, stop instead of repeating the
+  // same (potentially expensive) mistake across all 25 — e.g. a bad request shape or a
+  // systemic API issue should fail fast, not burn budget finding out the hard way 25 times.
+  const CIRCUIT_BREAKER_THRESHOLD = 4;
+  let consecutiveFailures = 0;
 
   for (const stock of data.stocks) {
     process.stdout.write(`Analyzing ${stock.name}... `);
@@ -139,11 +161,17 @@ async function main() {
         generatedAt: new Date().toISOString(),
       };
       console.log(result.verdict);
+      consecutiveFailures = 0;
     } catch (e) {
       console.log(`FAILED (${e.message})`);
       // Keep whatever analysis (if any) already existed for this stock rather than
       // dropping it — a transient API failure on one stock shouldn't erase yesterday's
       // otherwise-still-valid analysis for it.
+      consecutiveFailures += 1;
+      if (consecutiveFailures >= CIRCUIT_BREAKER_THRESHOLD) {
+        console.log(`${consecutiveFailures} consecutive failures — stopping early instead of repeating the same failure across all stocks.`);
+        break;
+      }
     }
     await new Promise((r) => setTimeout(r, 500));
   }
