@@ -117,6 +117,20 @@ function renderParagraphs(text) {
     .join('\n');
 }
 
+// Sources are only ever real, resolved article URLs (see analyze-stocks.js's
+// resolveSources — a model-typed URL is never trusted or stored). Not every stock has
+// sources every night: Gemini's grounding metadata isn't always returned, so this
+// renders nothing at all rather than an empty "Källor" heading when there's nothing to show.
+function renderSources(sources) {
+  if (!Array.isArray(sources) || sources.length === 0) return '';
+  return `<div class="sources-block">
+    <h2 class="sources-heading">Källor</h2>
+    <ul class="sources-list">
+      ${sources.map((s) => `<li><a href="${esc(s.url)}" rel="noopener nofollow" target="_blank">${esc(s.title)}</a><span class="source-domain">${esc(s.domain)}</span></li>`).join('\n      ')}
+    </ul>
+  </div>`;
+}
+
 // Compact, single-row shared header for every page this module renders (the /analys/
 // index and each per-stock page): site name, a link to the analyses index, and the two
 // live index prices — matching build/app.html's IDs closely enough to reuse its
@@ -250,6 +264,15 @@ ${headMeta}
   .meta{margin-block-start:16px; font-size:0.78rem; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
   .disclaimer{margin-block-start:20px; font-size:0.78rem; color:var(--ink-soft); line-height:1.6;}
   .metrics-heading{font-size:1rem; margin-block:24px 10px;}
+  .sources-heading{font-size:1rem; margin-block:24px 10px;}
+  .sources-list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px;}
+  .sources-list li{
+    display:flex; justify-content:space-between; align-items:baseline; gap:12px; padding:10px 14px;
+    background:var(--paper-raised); border:1px solid var(--line); border-radius:8px; box-shadow:var(--shadow);
+  }
+  .sources-list a{font-size:0.9rem; text-decoration:none;}
+  .sources-list a:hover{text-decoration:underline;}
+  .source-domain{font-size:0.72rem; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace; white-space:nowrap;}
   .metrics-row{display:flex; flex-wrap:wrap; gap:16px; margin-block-end:14px;}
   .metrics-row .metrics-group{flex:1 1 260px;}
   .metrics-group-title{font-family:'IBM Plex Sans', system-ui, sans-serif; font-size:0.72rem; font-weight:600; letter-spacing:0.03em; text-transform:uppercase; color:var(--ink-soft); margin:0 0 6px;}
@@ -331,12 +354,13 @@ function buildAnalysisPages(data, analysesData, { siteUrl } = {}) {
     <h1>${COUNTRY_FLAG[stock.country] || ''} ${esc(stock.name)}</h1>
     ${stock.fullName && stock.fullName !== stock.name ? `<p class="sub">${esc(stock.fullName)}</p>` : ''}
     <span class="verdict-badge ${VERDICT_CLASS[a.verdict] || 'verdict-neutral'}">${esc(VERDICT_LABEL[a.verdict] || a.verdict)}</span>
-    ${a.priceAtAnalysis != null ? `<span class="price-at-analysis">Kurs vid analys: ${esc(fmtPrice(a.priceAtAnalysis, a.currency))}</span>` : ''}
+    ${a.priceAtAnalysis != null ? `<span class="price-at-analysis">Kurs vid analys: ${esc(fmtPrice(a.priceAtAnalysis, a.currency))}${a.priceTarget != null ? ` &middot; Riktkurs (AI): ${esc(fmtPrice(a.priceTarget, a.currency))}` : ''}</span>` : ''}
     ${analyzedDate ? `<p class="analyzed-stamp">Analyserad ${esc(analyzedDate)}</p>` : ''}
   </header>
   <article>
     ${renderParagraphs(a.text)}
   </article>
+  ${renderSources(a.sources)}
   <h2 class="metrics-heading">Nyckeltal</h2>
   ${renderMetricsTable(stock)}
   <p class="disclaimer">Den här analysen är inte investeringsrådgivning och kan innehålla felaktigheter — verifiera alltid själv innan du fattar investeringsbeslut.</p>

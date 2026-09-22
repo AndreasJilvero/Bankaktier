@@ -105,7 +105,11 @@ Skriv en analys på svenska, 5-10 meningar, som täcker:
 
 Avsluta analysen med en tydlig sammanfattande mening om huvudargumentet för eller emot aktien. Skriv rakt och konkret, undvik disclaimers och floskler. Skriv analysen som om det vore den allra första och enda analysen som någonsin gjorts av aktien — nämn aldrig tidigare analyser, bedömningar eller att betyget har ändrats eller kvarstår sedan förut.
 
-Svara ENDAST med ett JSON-objekt på formen {"analysis": "...", "verdict": "Buy" | "Neutral" | "Sell"} — ingen markdown, ingen kodblocksmarkering, ingen extra text före eller efter.`;
+Ge också din egen riktkurs (ett konkret pris i ${stock.currency}, ej ett intervall) på 12 månaders sikt baserat på din analys ovan — detta är ditt eget estimat, inte analytikerkonsensus.
+
+Lista också 2-5 av de mest relevanta och färska nyhetskällorna du hittade via webbsökningen (kvartalsrapporter, pressmeddelanden, nyhetsartiklar om bolaget — inte generella börssidor eller kurshistorik). För varje källa, ange den exakta domänen du hittade den på (t.ex. "sebgroup.com", "di.se", "reuters.com" — samma domän som visas i sökresultaten) och en kort, konkret rubrik på svenska som beskriver vad källan handlar om.
+
+Svara ENDAST med ett JSON-objekt på formen {"analysis": "...", "verdict": "Buy" | "Neutral" | "Sell", "priceTarget": <tal, ej sträng>, "sources": [{"domain": "...", "title": "..."}]} — ingen markdown, ingen kodblocksmarkering, ingen extra text före eller efter.`;
 }
 
 // Gemini's grounding tool (googleSearch) and structured output (responseSchema) cannot be
@@ -121,6 +125,54 @@ function extractJson(text) {
     throw new Error(`no JSON object found in response text: ${text.slice(0, 200)}`);
   }
   return JSON.parse(candidate.slice(start, end + 1));
+}
+
+// The model can write down whatever URL it likes in its JSON output, and there is no
+// guarantee that string points anywhere real (or anywhere at all) — LLMs are known to
+// invent plausible-looking URLs. So we never trust a model-typed URL. Instead, the model
+// reports which DOMAIN it found each item on (e.g. "sebgroup.com"), and this matches that
+// against groundingChunks — the actual search results Gemini's web_search tool used,
+// which the API returns alongside the response. Only sources with a real, resolvable
+// grounding chunk make it into the page; anything the model claims but that has no
+// matching chunk is silently dropped rather than shown as a possibly-fake link.
+async function resolveSources(reportedSources, groundingChunks) {
+  if (!Array.isArray(reportedSources) || !Array.isArray(groundingChunks)) return [];
+
+  const chunksByDomain = new Map();
+  for (const chunk of groundingChunks) {
+    const uri = chunk?.web?.uri;
+    const title = chunk?.web?.title;
+    if (!uri || !title) continue;
+    const domain = title.replace(/^www\./, '').toLowerCase();
+    if (!chunksByDomain.has(domain)) chunksByDomain.set(domain, []);
+    chunksByDomain.get(domain).push(uri);
+  }
+
+  const resolved = [];
+  const usedUris = new Set();
+  for (const src of reportedSources) {
+    const domain = (src?.domain || '').replace(/^www\./, '').toLowerCase();
+    const candidates = chunksByDomain.get(domain);
+    if (!domain || !candidates || !src?.title) continue;
+    const redirectUri = candidates.find((u) => !usedUris.has(u));
+    if (!redirectUri) continue;
+
+    // Google's grounding redirect URL works but isn't a URL a reader would trust or
+    // want to see in a link preview — follow it (HEAD, one hop) to get the real article
+    // URL. If the fetch fails for any reason, skip this source rather than publish an
+    // opaque redirect link.
+    try {
+      const res = await fetch(redirectUri, { method: 'HEAD', redirect: 'manual' });
+      const finalUrl = res.headers.get('location');
+      if (!finalUrl) continue;
+      usedUris.add(redirectUri);
+      resolved.push({ title: src.title, url: finalUrl, domain });
+    } catch {
+      // Skip — an unresolvable link is worse than no link.
+    }
+    if (resolved.length >= 5) break;
+  }
+  return resolved;
 }
 
 async function analyzeStock(ai, stock, peers, previous) {
@@ -144,9 +196,17 @@ async function analyzeStock(ai, stock, peers, previous) {
     throw new Error(`invalid structured output for ${stock.id}: ${JSON.stringify(parsed)}`);
   }
 
+  const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
+  const sources = await resolveSources(parsed.sources, groundingChunks);
+  const priceTarget = typeof parsed.priceTarget === 'number' && Number.isFinite(parsed.priceTarget)
+    ? parsed.priceTarget
+    : null;
+
   const usage = response.usageMetadata || {};
   return {
     verdict: parsed.verdict,
+    sources,
+    priceTarget,
     text: parsed.analysis.trim(),
     prompt,
     rawResponse: text,
@@ -232,6 +292,8 @@ async function main() {
         country: stock.country,
         verdict: result.verdict,
         text: result.text,
+        sources: result.sources,
+        priceTarget: result.priceTarget,
         generatedAt: new Date().toISOString(),
         priceAtAnalysis: stock.price,
         currency: stock.currency,
